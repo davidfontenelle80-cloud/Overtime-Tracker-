@@ -1076,7 +1076,7 @@
     var m0 = Math.min(Math.max(Math.round(initMins), 0), 59);
     var inputDigits = (h0 || m0) ? String(h0 * 100 + m0) : '';
     function readTime() {
-      if (!inputDigits) return { h: 0, m: 0 };
+      if (!inputDigits) return { h: 0, m: 0 }; if (inputDigits.length === 1) return { h: parseInt(inputDigits, 10) || 0, m: 0 }; if (inputDigits.length === 2) return { h: parseInt(inputDigits.charAt(0), 10) || 0, m: parseInt(inputDigits.charAt(1), 10) || 0 };
       var n = parseInt(inputDigits, 10) || 0;
       var h = Math.floor(n / 100);
       var m = n % 100;
