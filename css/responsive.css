@@ -1,0 +1,44 @@
+/**
+ * responsive.css — KHub Boilerplate
+ * Mobile-first breakpoints.
+ * Base styles = phone. Then tablet (600px+), desktop (960px+).
+ */
+
+/* ── Phone (base) — already in main.css ── */
+
+/* ── Tablet (600px+) ── */
+@media (min-width: 600px) {
+  :root { --text-base: 1rem; }
+
+  .app-main { padding: var(--space-lg); }
+
+  .modal { max-width: 560px; }
+}
+
+/* ── Desktop (960px+) ── */
+@media (min-width: 960px) {
+  .app-main {
+    padding: var(--space-xl) var(--space-lg);
+    padding-bottom: var(--space-xl);
+  }
+
+  /* Hide bottom nav on desktop if present, use sidebar instead */
+  .bottom-nav { display: none; }
+}
+
+/* ── Large desktop (1280px+) ── */
+@media (min-width: 1280px) {
+  :root { --max-width: 1000px; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+/* ── Print ── */
+@media print {
+  .app-header, .bottom-nav, .update-notice, .error-boundary { display: none; }
+  .app-main { padding: 0; }
+}
+
