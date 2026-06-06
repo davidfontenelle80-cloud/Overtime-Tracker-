@@ -43,6 +43,8 @@ const PRECACHE_URLS = [
   './js/components/input.js',
   './js/perf.js',
   './js/app.js',
+  './js/firebase/firebase-config.js',
+  './js/firebase/cloud-backup.js',
 ];
 
 // ── Install ──────────────────────────────────────────────────
