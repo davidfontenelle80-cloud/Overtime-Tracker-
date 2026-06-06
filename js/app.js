@@ -1603,7 +1603,7 @@
             else if (typeof ce.hours === 'number') { subParts.push(TYPES[ce.type].tag+':'+fmtCompact(ce.hours)); weekTotal+=ce.hours; weekHasData=true; }
           }
         }
-        if (inActive && !isToday) classes.push('in-period');
+        if (inActive) classes.push('in-period');
         if (isToday) classes.push('today');
         var subText = subParts.join('\n');
         html += '<button class="' + classes.join(' ') + '" data-action="day" data-date="' + key + '">';
