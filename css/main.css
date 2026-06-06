@@ -39,6 +39,42 @@
   --ot:    var(--ot); --vac:    #38bdf8; --sick:   var(--sick); --fsick:  var(--fsick);
   --pl:    #14b8a6; --comp:   var(--comp); --hcomp:  #f97316; --block:  var(--block);
   --period:var(--period); --fmla:   #3b82f6; --warn:   var(--block); --danger: var(--sick);
+
+  /* ── Calendar cell tokens (explicit rgba — universal browser support) ── */
+  --cal-ot-bg:      rgba(16, 185, 129, 0.22);
+  --cal-ot-border:  rgba(16, 185, 129, 0.55);
+  --cal-ot-glow:    rgba(16, 185, 129, 0.18);
+  --cal-alt-bg:     rgba(34, 197, 94, 0.20);
+  --cal-alt-border: rgba(34, 197, 94, 0.50);
+  --cal-alt-glow:   rgba(34, 197, 94, 0.15);
+  --cal-vac-bg:     rgba(56, 189, 248, 0.22);
+  --cal-vac-border: rgba(56, 189, 248, 0.55);
+  --cal-vac-glow:   rgba(56, 189, 248, 0.15);
+  --cal-sick-bg:    rgba(239, 68, 68, 0.22);
+  --cal-sick-border:rgba(239, 68, 68, 0.55);
+  --cal-sick-glow:  rgba(239, 68, 68, 0.15);
+  --cal-fsick-bg:   rgba(236, 72, 153, 0.22);
+  --cal-fsick-border:rgba(236, 72, 153, 0.55);
+  --cal-fsick-glow: rgba(236, 72, 153, 0.15);
+  --cal-pl-bg:      rgba(20, 184, 166, 0.22);
+  --cal-pl-border:  rgba(20, 184, 166, 0.55);
+  --cal-pl-glow:    rgba(20, 184, 166, 0.15);
+  --cal-comp-bg:    rgba(34, 197, 94, 0.22);
+  --cal-comp-border:rgba(34, 197, 94, 0.55);
+  --cal-comp-glow:  rgba(34, 197, 94, 0.15);
+  --cal-hcomp-bg:   rgba(249, 115, 22, 0.22);
+  --cal-hcomp-border:rgba(249, 115, 22, 0.55);
+  --cal-hcomp-glow: rgba(249, 115, 22, 0.15);
+  --cal-block-bg:   rgba(245, 158, 11, 0.22);
+  --cal-block-border:rgba(245, 158, 11, 0.55);
+  --cal-block-glow: rgba(245, 158, 11, 0.15);
+  --cal-fmla-bg:    rgba(59, 130, 246, 0.22);
+  --cal-fmla-border:rgba(59, 130, 246, 0.55);
+  --cal-fmla-glow:  rgba(59, 130, 246, 0.15);
+  --cal-period-bg:  rgba(168, 85, 247, 0.22);
+  --cal-period-border:rgba(168, 85, 247, 0.55);
+  --cal-period-glow:rgba(168, 85, 247, 0.18);
+  --cal-in-period-ring: rgba(168, 85, 247, 0.45);
 }
 
 /* ── Light theme ── */
@@ -135,7 +171,7 @@
   .alert-title { font-weight: 700; margin-bottom: 2px; }
 
   /* Period card */
-  .period-card { background: var(--card); border: 1px solid var(--border); border-top: 1px solid color-mix(in srgb, var(--ot) 28%, transparent); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 14px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent), 0 4px 20px var(--shadow-md), 0 1px 3px var(--shadow-sm); }
+  .period-card { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--ot); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 14px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent), 0 4px 20px var(--shadow-md), 0 1px 3px var(--shadow-sm); }
   .period-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
   .period-range { font-size: 14px; font-weight: 500; color: var(--text); }
   .nav-row { display: flex; gap: 4px; }
@@ -262,7 +298,7 @@
   .cal-grid-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 6px; }
   .cal-day-name { text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); font-weight: 600; padding: 3px 0; }
   .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-  .cal-cell { min-height: 46px; border-radius: var(--radius-sm); border: 1px solid var(--border); border-top: 1px solid color-mix(in srgb, var(--ot) 15%, transparent); background: var(--cell-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; padding: 3px 2px; color: var(--text); font-family: inherit; position: relative; overflow: hidden; }
+  .cal-cell { min-height: 46px; border-radius: var(--radius-sm); border: 1px solid var(--border); border-top: 1px solid var(--cal-ot-bg); background: var(--cell-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; padding: 3px 2px; color: var(--text); font-family: inherit; position: relative; overflow: hidden; }
   .cal-cell:active { transform: scale(0.94); }
   .cal-cell-num { font-size: 13px; font-weight: 500; }
   .cal-cell-sub { font-size: 7px; font-weight: 700; margin-top: 1px; line-height: 1.25; text-align: center; white-space: pre-line; }
@@ -275,39 +311,40 @@
     .cal-cell-num { font-size: 18px; }
     .cal-cell-sub { font-size: 11px; }
   }
-  .cal-cell.ot { background: color-mix(in srgb, var(--ot) 28%, transparent); border-color: color-mix(in srgb, var(--ot) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--ot) 15%, transparent); }
+    .cal-cell.ot        { background: var(--cal-ot-bg);     border-color: var(--cal-ot-border);     box-shadow: 0 0 10px var(--cal-ot-glow); }
   .cal-cell.ot .cal-cell-sub { color: var(--ot); }
-  .cal-cell.vac { background: color-mix(in srgb, var(--vac) 28%, transparent); border-color: color-mix(in srgb, var(--vac) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--vac) 15%, transparent); }
-  .cal-cell.vac .cal-cell-sub { color: var(--vac); }
-  .cal-cell.sick { background: color-mix(in srgb, var(--danger) 28%, transparent); border-color: color-mix(in srgb, var(--sick) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--sick) 15%, transparent); }
-  .cal-cell.sick .cal-cell-sub { color: var(--sick); }
-  .cal-cell.fsick { background: color-mix(in srgb, var(--fsick) 28%, transparent); border-color: color-mix(in srgb, var(--fsick) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--fsick) 15%, transparent); }
-  .cal-cell.fsick .cal-cell-sub { color: var(--fsick); }
-  .cal-cell.pl { background: color-mix(in srgb, var(--pl) 28%, transparent); border-color: color-mix(in srgb, var(--pl) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--pl) 15%, transparent); }
-  .cal-cell.pl .cal-cell-sub { color: var(--pl); }
-  .cal-cell.comp { background: color-mix(in srgb, var(--comp) 28%, transparent); border-color: color-mix(in srgb, var(--comp) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--comp) 15%, transparent); }
-  .cal-cell.comp .cal-cell-sub { color: var(--comp); }
-  .cal-cell.hcomp { background: color-mix(in srgb, var(--hcomp) 28%, transparent); border-color: color-mix(in srgb, var(--hcomp) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--hcomp) 15%, transparent); }
-  .cal-cell.hcomp .cal-cell-sub { color: var(--hcomp); }
-  .cal-cell.block { background: color-mix(in srgb, var(--warn) 28%, transparent); border-color: color-mix(in srgb, var(--block) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--block) 15%, transparent); }
-  .cal-cell.block .cal-cell-num, .cal-cell.block .cal-cell-sub { color: var(--block); }
-  .cal-cell.fmla { background: color-mix(in srgb, var(--fmla) 28%, transparent); border-color: color-mix(in srgb, var(--fmla) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--fmla) 15%, transparent); }
-  .cal-cell.fmla .cal-cell-sub { color: var(--fmla); }
-  .cal-cell.fmla-p2 { background: color-mix(in srgb, var(--period) 18%, transparent); border-color: color-mix(in srgb, var(--period) 18%, transparent); }
-  .cal-cell.fmla-p2 .cal-cell-sub { color: var(--period); }
-  .cal-cell.fmla-p3 { background: color-mix(in srgb, var(--block) 18%, transparent); border-color: color-mix(in srgb, var(--block) 18%, transparent); }
-  .cal-cell.fmla-p3 .cal-cell-sub { color: var(--block); }
-  .cal-cell.fmla-p4 { background: color-mix(in srgb, var(--sick) 18%, transparent); border-color: color-mix(in srgb, var(--sick) 18%, transparent); }
-  .cal-cell.fmla-p4 .cal-cell-sub { color: var(--sick); }
-  .cal-cell.fmla-p5 { background: color-mix(in srgb, var(--ot) 15%, transparent); border-color: color-mix(in srgb, var(--ot) 18%, transparent); }
-  .cal-cell.fmla-p5 .cal-cell-sub { color: var(--ot); }
-  .cal-cell.fmla-p6 { background: color-mix(in srgb, var(--fsick) 18%, transparent); border-color: color-mix(in srgb, var(--fsick) 18%, transparent); }
-  .cal-cell.fmla-p6 .cal-cell-sub { color: var(--fsick); }
-  .cal-cell.ot-alt { background: color-mix(in srgb, var(--comp) 14%, transparent); border-color: color-mix(in srgb, var(--comp) 35%, transparent); }
+  .cal-cell.ot-alt    { background: var(--cal-alt-bg);    border-color: var(--cal-alt-border);    box-shadow: 0 0 10px var(--cal-alt-glow); }
   .cal-cell.ot-alt .cal-cell-sub { color: var(--comp); }
-  .cal-cell.in-period { box-shadow: 0 0 0 2px var(--period), 0 0 14px color-mix(in srgb, var(--period) 40%, transparent); }
-  .cal-cell.today { border: 2px solid var(--ot); box-shadow: 0 0 14px color-mix(in srgb, var(--ot) 45%, transparent); }
-  .cal-cell.in-period.today { box-shadow: 0 0 0 1px var(--period), 0 0 8px color-mix(in srgb, var(--period) 30%, transparent); }
+  .cal-cell.vac       { background: var(--cal-vac-bg);    border-color: var(--cal-vac-border);    box-shadow: 0 0 10px var(--cal-vac-glow); }
+  .cal-cell.vac .cal-cell-sub { color: var(--vac); }
+  .cal-cell.sick      { background: var(--cal-sick-bg);   border-color: var(--cal-sick-border);   box-shadow: 0 0 10px var(--cal-sick-glow); }
+  .cal-cell.sick .cal-cell-sub { color: var(--sick); }
+  .cal-cell.fsick     { background: var(--cal-fsick-bg);  border-color: var(--cal-fsick-border);  box-shadow: 0 0 10px var(--cal-fsick-glow); }
+  .cal-cell.fsick .cal-cell-sub { color: var(--fsick); }
+  .cal-cell.pl        { background: var(--cal-pl-bg);     border-color: var(--cal-pl-border);     box-shadow: 0 0 10px var(--cal-pl-glow); }
+  .cal-cell.pl .cal-cell-sub { color: var(--pl); }
+  .cal-cell.comp      { background: var(--cal-comp-bg);   border-color: var(--cal-comp-border);   box-shadow: 0 0 10px var(--cal-comp-glow); }
+  .cal-cell.comp .cal-cell-sub { color: var(--comp); }
+  .cal-cell.hcomp     { background: var(--cal-hcomp-bg);  border-color: var(--cal-hcomp-border);  box-shadow: 0 0 10px var(--cal-hcomp-glow); }
+  .cal-cell.hcomp .cal-cell-sub { color: var(--hcomp); }
+  .cal-cell.block     { background: var(--cal-block-bg);  border-color: var(--cal-block-border);  box-shadow: 0 0 10px var(--cal-block-glow); }
+  .cal-cell.block .cal-cell-num, .cal-cell.block .cal-cell-sub { color: var(--block); }
+  .cal-cell.fmla      { background: var(--cal-fmla-bg);   border-color: var(--cal-fmla-border);   box-shadow: 0 0 10px var(--cal-fmla-glow); }
+  .cal-cell.fmla .cal-cell-sub { color: var(--fmla); }
+  .cal-cell.fmla-p2   { background: var(--cal-period-bg); border-color: var(--cal-period-border); }
+  .cal-cell.fmla-p2 .cal-cell-sub { color: var(--period); }
+  .cal-cell.fmla-p3   { background: var(--cal-block-bg);  border-color: var(--cal-block-border); }
+  .cal-cell.fmla-p3 .cal-cell-sub { color: var(--block); }
+  .cal-cell.fmla-p4   { background: var(--cal-sick-bg);   border-color: var(--cal-sick-border); }
+  .cal-cell.fmla-p4 .cal-cell-sub { color: var(--sick); }
+  .cal-cell.fmla-p5   { background: var(--cal-ot-bg);     border-color: var(--cal-ot-border); }
+  .cal-cell.fmla-p5 .cal-cell-sub { color: var(--ot); }
+  .cal-cell.fmla-p6   { background: var(--cal-fsick-bg);  border-color: var(--cal-fsick-border); }
+  .cal-cell.fmla-p6 .cal-cell-sub { color: var(--fsick); }
+  .cal-cell.ot-alt .cal-cell-sub,
+  .cal-cell.in-period { box-shadow: 0 0 0 2px var(--period), 0 0 14px var(--cal-period-glow); }
+  .cal-cell.today     { border: 2px solid var(--ot); box-shadow: 0 0 14px var(--cal-ot-glow); }
+  .cal-cell.in-period.today { border: 2px solid var(--ot); box-shadow: 0 0 0 2px var(--period), 0 0 14px var(--cal-period-glow); }
   .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .cal-month { font-size: 16px; font-weight: 600; color: var(--text); }
 

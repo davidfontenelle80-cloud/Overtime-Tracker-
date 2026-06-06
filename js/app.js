@@ -1483,17 +1483,6 @@
       html += '<div class="backup-btn-icon imp">' + icons.upload + '</div>';
       html += '<div class="backup-btn-main">Import Backup<div class="backup-btn-sub">Restore from a saved file</div></div>';
       html += '</button>';
-      // Cloud backup
-      var cloudTs = window.KHub?.CloudBackup?.lastSaved('overtime-tracker');
-      var cloudSub = cloudTs ? 'Last saved: ' + new Date(cloudTs).toLocaleString() : 'Not saved to cloud yet';
-      html += '<button class="backup-btn-big" data-action="cloud-save">';
-      html += '<div class="backup-btn-icon">☁</div>';
-      html += '<div class="backup-btn-main">Save to Cloud<div class="backup-btn-sub">' + cloudSub + '</div></div>';
-      html += '</button>';
-      html += '<button class="backup-btn-big" data-action="cloud-restore">';
-      html += '<div class="backup-btn-icon imp">☁</div>';
-      html += '<div class="backup-btn-main">Restore from Cloud<div class="backup-btn-sub">Load your last cloud backup</div></div>';
-      html += '</button>';
       html += '</div>';
     }
     html += '</div>';
@@ -1501,9 +1490,9 @@
   }
 
   function summaryChip(label, value, color) {
-    return '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:5px 10px;flex-shrink:0">'
-      +'<div style="font-size:9px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em">'+label+'</div>'
-      +'<div style="font-size:13px;font-weight:700;color:'+color+';font-variant-numeric:tabular-nums;white-space:nowrap">'+value+'</div>'
+    return '<div style="background:var(--card);border:1px solid var(--border);border-bottom:2px solid '+color+';border-radius:var(--radius-sm);padding:6px 12px;flex-shrink:0;box-shadow:0 4px 16px var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,0.05)">'
+      +'<div style="font-size:9px;font-weight:700;color:'+color+';opacity:0.7;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:2px">'+label+'</div>'
+      +'<div style="font-size:14px;font-weight:800;color:'+color+';font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 0 12px '+color+'">'+value+'</div>'
       +'</div>';
   }
   function savedStatusText() {
@@ -2103,26 +2092,6 @@
     else if (action === 'toggle-backup') { haptic('light'); state.backupOpen = !state.backupOpen; render(); }
     else if (action === 'export') { doExport(); }
     else if (action === 'import') { document.getElementById('fileInput').click(); }
-    else if (action === 'cloud-save') {
-      if (!window.KHub?.Firebase?.db) { showToast('Cloud backup unavailable', 'error'); return; }
-      KHub.CloudBackup.save('overtime-tracker',
-        ['tracker-v3-data', 'tracker-v3-theme', 'tracker-v3-settings', 'tracker-v3-meta'])
-        .then(function() { showToast('Saved to cloud ☁'); render(); })
-        .catch(function(e) { showToast('Cloud save failed', 'error'); console.error(e); });
-    }
-    else if (action === 'cloud-restore') {
-      if (!window.KHub?.Firebase?.db) { showToast('Cloud backup unavailable', 'error'); return; }
-      showConfirm('Restore from Cloud', 'Replace all data with your cloud backup? This cannot be undone.', function() {
-        KHub.CloudBackup.restore('overtime-tracker',
-          ['tracker-v3-data', 'tracker-v3-theme', 'tracker-v3-settings', 'tracker-v3-meta'],
-          null,
-          function() { showToast('Restored from cloud ☁'); setTimeout(function(){ location.reload(); }, 800); }
-        ).catch(function(e) {
-          var msg = e.message === 'no-backup' ? 'No cloud backup found for this device' : 'Cloud restore failed';
-          showToast(msg, 'error'); console.error(e);
-        });
-      });
-    }
     else if (action === 'goto-settings') { haptic('light'); state.tab = 'settings'; render(); }
     else if (action === 'modal-ok') {
       var cb = state.confirmCb;
@@ -2470,6 +2439,7 @@
             }
             if (!state.settings.balanceAsOfDate) state.settings.balanceAsOfDate = formatDateKey(new Date());
             if (!state.settings.accrualEffectiveDate) state.settings.accrualEffectiveDate = state.settings.balanceAsOfDate;
+            state.settings.compRemaining = parseFloat(state.settings.compRemaining) || 0;
             state.settings.hcompRemaining = parseFloat(state.settings.hcompRemaining) || 0;
             state.settings.vacationMonthlyAccrual = parseFloat(state.settings.vacationMonthlyAccrual) || 0;
             state.settings.sickMonthlyAccrual = parseFloat(state.settings.sickMonthlyAccrual) || 0;
@@ -2513,9 +2483,15 @@
   applyMonthlyAccrual(false);
   // Keep a midnight watcher running so the 1st is caught without a manual refresh
   scheduleMidnightAccrualCheck();
-  // Auto-save to cloud silently on close / hide
-  if (window.KHub?.CloudBackup) {
-    KHub.CloudBackup.autoSave('overtime-tracker',
-      ['tracker-v3-data', 'tracker-v3-theme', 'tracker-v3-settings', 'tracker-v3-meta']);
-  }
+  render();
 })();
+
+window.addEventListener('error',function(e){
+  console.error('[OTTracker] Uncaught:',e.error||e.message);
+  var eb=document.getElementById('error-boundary');
+  var em=document.getElementById('error-message');
+  if(eb&&em){em.textContent=e.message||'An error occurred.';eb.hidden=false;}
+});
+window.addEventListener('unhandledrejection',function(e){
+  console.error('[OTTracker] Rejection:',e.reason);
+});
