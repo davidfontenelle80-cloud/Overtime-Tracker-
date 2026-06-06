@@ -1,37 +1,49 @@
 /**
- * theme.js — KHub Boilerplate
- * Dark mode toggle with system-preference sync.
- *
- * Behavior:
- *   1. On first visit: reads prefers-color-scheme
- *   2. User can toggle — choice saved to localStorage
- *   3. Listens for OS-level changes and follows them (only if user hasn't overridden)
- *   4. Sets data-theme="light"|"dark" on <html>
- *   5. Updates toggle button text + aria-label
+ * theme.js -- KHub Boilerplate
+ * Dark is the default. Light is the toggle.
+ * On first visit with no saved preference, dark is applied.
+ * Respects OS preference only if the user has not manually chosen.
+ * Updates <meta name="theme-color"> live on every theme change.
  */
 (function () {
   'use strict';
 
   const STORAGE_KEY  = 'khub_theme';
-  const OVERRIDE_KEY = 'khub_theme_override'; // true = user explicitly chose
+  const OVERRIDE_KEY = 'khub_theme_override';
+  const META_COLORS  = { dark: '#0b0d12', light: '#eef1f5' };
 
-  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
 
   function getInitialTheme() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return saved;
-    return mediaQuery.matches ? 'dark' : 'light';
+    // Dark default unless OS explicitly prefers light
+    return mediaQuery.matches ? 'light' : 'dark';
+  }
+
+  function updateMetaColor(theme) {
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+    }
+    meta.content = META_COLORS[theme] || META_COLORS.dark;
   }
 
   function apply(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
     localStorage.setItem(STORAGE_KEY, theme);
+    updateMetaColor(theme);
 
     const btn = document.getElementById('theme-toggle');
     if (btn) {
       const isDark = theme === 'dark';
       btn.textContent = isDark ? '☀️' : '🌙';
-      // Use i18n if loaded, otherwise fall back to English
       const label = isDark
         ? (window.KHub?.I18n?.t('themeToggleLight') || 'Switch to light mode')
         : (window.KHub?.I18n?.t('themeToggleDark')  || 'Switch to dark mode');
@@ -43,28 +55,31 @@
 
   function toggle() {
     localStorage.setItem(OVERRIDE_KEY, 'true');
-    apply(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    const current = localStorage.getItem(STORAGE_KEY) || 'dark';
+    apply(current === 'dark' ? 'light' : 'dark');
   }
 
-  // Follow OS changes unless the user has explicitly chosen
+  // Follow OS changes only if user has not manually overridden
   mediaQuery.addEventListener('change', e => {
     if (!localStorage.getItem(OVERRIDE_KEY)) {
-      apply(e.matches ? 'dark' : 'light');
+      apply(e.matches ? 'light' : 'dark');
     }
   });
 
-  // Apply immediately (before DOMContentLoaded) to prevent flash of wrong theme
+  // Apply immediately before DOMContentLoaded to prevent flash
   apply(getInitialTheme());
 
   window.KHub = window.KHub || {};
   window.KHub.Theme = {
     apply,
     toggle,
-    get current() { return document.documentElement.getAttribute('data-theme'); },
+    get current() {
+      return document.documentElement.getAttribute('data-theme') || 'dark';
+    },
     reset() {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(OVERRIDE_KEY);
-      apply(mediaQuery.matches ? 'dark' : 'light');
+      apply(mediaQuery.matches ? 'light' : 'dark');
     },
   };
 
@@ -72,4 +87,3 @@
     document.getElementById('theme-toggle')?.addEventListener('click', toggle);
   });
 })();
-

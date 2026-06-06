@@ -2485,3 +2485,13 @@
   scheduleMidnightAccrualCheck();
   render();
 })();
+
+window.addEventListener('error',function(e){
+  console.error('[OTTracker] Uncaught:',e.error||e.message);
+  var eb=document.getElementById('error-boundary');
+  var em=document.getElementById('error-message');
+  if(eb&&em){em.textContent=e.message||'An error occurred.';eb.hidden=false;}
+});
+window.addEventListener('unhandledrejection',function(e){
+  console.error('[OTTracker] Rejection:',e.reason);
+});
