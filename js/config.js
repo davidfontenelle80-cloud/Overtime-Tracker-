@@ -38,7 +38,7 @@
     // Set to true to activate. See individual module files for setup steps.
     features: {
       auth:     false,   // -> js/auth.js
-      firebase: false,   // -> firebase/firebase-config.js
+      firebase: true,    // -> firebase/firebase-config.js
     },
 
     // ── Logging ───────────────────────────────────────────

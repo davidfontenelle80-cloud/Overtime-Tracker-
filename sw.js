@@ -18,7 +18,7 @@
  * BUMP THIS VERSION STRING on every deploy so the cache key changes.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v1';
+const CACHE_VERSION = 'overtime-tracker-v2';
 
 /**
  * All URLs that make up the app shell.
