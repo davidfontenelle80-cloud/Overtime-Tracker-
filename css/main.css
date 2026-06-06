@@ -8,8 +8,8 @@
   html, body { margin: 0; padding: 0; background: #050607; color: #f7f8fb; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overscroll-behavior-y: none; }
   body.light { background: #f5f6f8; color: #0f172a; }
 
-  body { --bg: #050607; --card: #111318; --panel: #29283d; --panel-2: #242437; --border: rgba(143,151,184,0.18); --panel-border: #454468; --text: #f7f8fb; --muted: #a0a8bd; --dim: #768198; --input-bg: #171a21; --input-border: rgba(143,151,184,0.18); --nav-bg: #050607; --cell-bg: rgba(255,255,255,0.035); --bar-bg: rgba(255,255,255,0.07); --ring: rgba(88,193,143,0.28); --green-bg: rgba(36,75,72,0.78); --amber-bg: rgba(77,58,40,0.86); --red-bg: rgba(82,37,40,0.74); --purple-bg: rgba(64,45,96,0.52); }
-  body.light { --bg: #dde3ec; --card: #ffffff; --panel: #f1f4fb; --panel-2: #e7ecf7; --border: #b8c4d4; --panel-border: #c2cadb; --text: #0f172a; --muted: #64748b; --dim: #94a3b8; --input-bg: #edf1f7; --input-border: #b8c4d4; --nav-bg: #ffffff; --cell-bg: #f0f4f9; --bar-bg: #c8d3e0; --ring: rgba(5,150,105,0.22); --green-bg: #d9f3e7; --amber-bg: #fff1d6; --red-bg: #ffe3e3; --purple-bg: #efe7ff; }
+  body { --bg: #050607; --card: #111318; --panel: #29283d; --panel-2: #242437; --border: rgba(143,151,184,0.18); --panel-border: #454468; --text: #f7f8fb; --muted: #a0a8bd; --dim: #768198; --input-bg: #171a21; --input-border: rgba(143,151,184,0.18); --nav-bg: #050607; --cell-bg: rgba(255,255,255,0.035); --bar-bg: rgba(255,255,255,0.07); --ring: rgba(88,193,143,0.28); --green-bg: rgba(36,75,72,0.78); --amber-bg: rgba(77,58,40,0.86); --red-bg: rgba(82,37,40,0.74); --purple-bg: rgba(64,45,96,0.52); --period-ring: #b86cff; --period-ring-glow: rgba(184,108,255,0.66); }
+  body.light { --bg: #dde3ec; --card: #ffffff; --panel: #f1f4fb; --panel-2: #e7ecf7; --border: #b8c4d4; --panel-border: #c2cadb; --text: #0f172a; --muted: #64748b; --dim: #94a3b8; --input-bg: #edf1f7; --input-border: #b8c4d4; --nav-bg: #ffffff; --cell-bg: #f0f4f9; --bar-bg: #c8d3e0; --ring: rgba(5,150,105,0.22); --green-bg: #d9f3e7; --amber-bg: #fff1d6; --red-bg: #ffe3e3; --purple-bg: #efe7ff; --period-ring: #8b35e8; --period-ring-glow: rgba(139,53,232,0.36); }
 
   /* Category colors */
   body { --ot: #58c18f; --vac: #66c7ff; --sick: #ff5d5d; --fsick: #e85fad; --pl: #62c8bd; --comp: #ff6868; --hcomp: #ff9a54; --block: #f5aa2e; --period: #a96aff; --fmla: #7aa2ff; --warn: #f5aa2e; --danger: #ff5d5d; }
@@ -246,9 +246,22 @@
   .cal-cell.fmla-p6 .cal-cell-sub { color: #ec4899; }
   .cal-cell.ot-alt { background: rgba(34, 197, 94, 0.14); border-color: rgba(34, 197, 94, 0.35); }
   .cal-cell.ot-alt .cal-cell-sub { color: #22c55e; }
-  .cal-cell.in-period { box-shadow: 0 0 0 1px var(--period), 0 0 10px color-mix(in srgb, var(--period) 36%, transparent); }
-  .cal-cell.today { border: 2px solid var(--ot); box-shadow: none; }
-  .cal-cell.in-period.today { box-shadow: 0 0 0 1px var(--period), 0 0 10px color-mix(in srgb, var(--period) 36%, transparent); }
+  .cal-cell.in-period {
+    border-color: var(--period-ring);
+    box-shadow:
+      inset 0 0 0 2px var(--period-ring),
+      0 0 0 1px color-mix(in srgb, var(--period-ring) 78%, transparent),
+      0 0 14px var(--period-ring-glow);
+    z-index: 1;
+  }
+  .cal-cell.today { border: 2px solid var(--ot); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ot) 55%, transparent), 0 0 12px color-mix(in srgb, var(--ot) 38%, transparent); }
+  .cal-cell.in-period.today {
+    border-color: var(--ot);
+    box-shadow:
+      inset 0 0 0 2px var(--period-ring),
+      0 0 0 2px var(--ot),
+      0 0 16px var(--period-ring-glow);
+  }
   .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .cal-month { font-size: 16px; font-weight: 600; color: var(--text); }
 
