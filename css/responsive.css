@@ -1,46 +1,22 @@
 /**
- * responsive.css -- KHub Boilerplate
- * Mobile-first breakpoints.
- * Base styles = phone. Tablet at 600 and 768. Desktop at 960 and 1200.
+ * responsive.css — KHub mobile-first helpers
+ * Do not hide app navigation at desktop widths; these apps are designed to
+ * keep the same phone-like interaction model when widened.
  */
-
-/* Phone (base) -- in main.css */
-
-/* Tablet narrow (600px+) */
 @media (min-width: 600px) {
-  .app-main { padding: var(--space-lg); }
-  .modal    { max-width: 560px; }
+  :root { --text-base: 1rem; }
+  .app-main { padding: var(--space-lg, 24px); }
 }
-
-/* Tablet (768px+) */
-@media (min-width: 768px) {
-  .app-main { padding: var(--space-lg) var(--space-xl); }
-}
-
-/* Desktop (960px+) */
 @media (min-width: 960px) {
-  .app-main {
-    padding: var(--space-xl) var(--space-lg);
-    padding-bottom: var(--space-xl);
-  }
-  .bottom-nav { display: none; }
+  .app-main { padding: var(--space-xl, 32px) var(--space-lg, 24px); }
 }
-
-/* Large desktop (1200px+) */
-@media (min-width: 1200px) {
-  :root { --max-width: 560px; }
+@media (min-width: 1280px) {
+  :root { --max-width: 1000px; }
 }
-
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration:  0.01ms !important;
-  }
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
-
-/* Print */
 @media print {
-  .app-header, .bottom-nav, .update-notice, .error-boundary { display: none; }
+  .app-header, .bottom-nav, .nav, .update-notice, .error-boundary { display: none !important; }
   .app-main { padding: 0; }
 }
