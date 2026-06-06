@@ -1490,9 +1490,9 @@
   }
 
   function summaryChip(label, value, color) {
-    return '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:5px 10px;flex-shrink:0">'
-      +'<div style="font-size:9px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em">'+label+'</div>'
-      +'<div style="font-size:13px;font-weight:700;color:'+color+';font-variant-numeric:tabular-nums;white-space:nowrap">'+value+'</div>'
+    return '<div style="background:var(--card);border:1px solid var(--border);border-bottom:2px solid '+color+';border-radius:var(--radius-sm);padding:6px 12px;flex-shrink:0;box-shadow:0 4px 16px var(--shadow-sm),inset 0 1px 0 rgba(255,255,255,0.05)">'
+      +'<div style="font-size:9px;font-weight:700;color:'+color+';opacity:0.7;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:2px">'+label+'</div>'
+      +'<div style="font-size:14px;font-weight:800;color:'+color+';font-variant-numeric:tabular-nums;white-space:nowrap;text-shadow:0 0 12px '+color+'">'+value+'</div>'
       +'</div>';
   }
   function savedStatusText() {

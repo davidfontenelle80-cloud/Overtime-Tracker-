@@ -81,7 +81,7 @@
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font-base); overscroll-behavior-y: none; }
-    .app { min-height: 100vh; background: var(--bg); color: var(--text); padding-bottom: calc(env(safe-area-inset-bottom) + 90px); transition: background 0.22s ease, color 0.22s ease; }
+    .app { min-height: 100vh; background: radial-gradient(ellipse 80% 40% at 0% 0%, color-mix(in srgb, var(--ot) 6%, var(--bg)) 0%, var(--bg) 55%); color: var(--text); padding-bottom: calc(env(safe-area-inset-bottom) + 90px); transition: background 0.22s ease, color 0.22s ease; }
   button, input { transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease, transform 0.12s ease; }
   button:focus-visible, input:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); border-color: var(--ot); }
   .container { max-width: 28rem; margin: 0 auto; padding: 16px; }
@@ -275,23 +275,23 @@
     .cal-cell-num { font-size: 18px; }
     .cal-cell-sub { font-size: 11px; }
   }
-  .cal-cell.ot { background: color-mix(in srgb, var(--ot) 22%, transparent); border-color: color-mix(in srgb, var(--ot) 50%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--ot) 15%, transparent); }
+  .cal-cell.ot { background: color-mix(in srgb, var(--ot) 28%, transparent); border-color: color-mix(in srgb, var(--ot) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--ot) 15%, transparent); }
   .cal-cell.ot .cal-cell-sub { color: var(--ot); }
-  .cal-cell.vac { background: color-mix(in srgb, var(--vac) 22%, transparent); border-color: color-mix(in srgb, var(--vac) 50%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--vac) 15%, transparent); }
+  .cal-cell.vac { background: color-mix(in srgb, var(--vac) 28%, transparent); border-color: color-mix(in srgb, var(--vac) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--vac) 15%, transparent); }
   .cal-cell.vac .cal-cell-sub { color: var(--vac); }
-  .cal-cell.sick { background: color-mix(in srgb, var(--danger) 22%, transparent); border-color: color-mix(in srgb, var(--sick) 50%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--sick) 15%, transparent); }
+  .cal-cell.sick { background: color-mix(in srgb, var(--danger) 28%, transparent); border-color: color-mix(in srgb, var(--sick) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--sick) 15%, transparent); }
   .cal-cell.sick .cal-cell-sub { color: var(--sick); }
-  .cal-cell.fsick { background: color-mix(in srgb, var(--fsick) 22%, transparent); border-color: color-mix(in srgb, var(--fsick) 50%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--fsick) 15%, transparent); }
+  .cal-cell.fsick { background: color-mix(in srgb, var(--fsick) 28%, transparent); border-color: color-mix(in srgb, var(--fsick) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--fsick) 15%, transparent); }
   .cal-cell.fsick .cal-cell-sub { color: var(--fsick); }
-  .cal-cell.pl { background: color-mix(in srgb, var(--pl) 22%, transparent); border-color: color-mix(in srgb, var(--pl) 50%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--pl) 15%, transparent); }
+  .cal-cell.pl { background: color-mix(in srgb, var(--pl) 28%, transparent); border-color: color-mix(in srgb, var(--pl) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--pl) 15%, transparent); }
   .cal-cell.pl .cal-cell-sub { color: var(--pl); }
-  .cal-cell.comp { background: color-mix(in srgb, var(--comp) 22%, transparent); border-color: color-mix(in srgb, var(--comp) 50%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--comp) 15%, transparent); }
+  .cal-cell.comp { background: color-mix(in srgb, var(--comp) 28%, transparent); border-color: color-mix(in srgb, var(--comp) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--comp) 15%, transparent); }
   .cal-cell.comp .cal-cell-sub { color: var(--comp); }
-  .cal-cell.hcomp { background: color-mix(in srgb, var(--hcomp) 22%, transparent); border-color: color-mix(in srgb, var(--hcomp) 50%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--hcomp) 15%, transparent); }
+  .cal-cell.hcomp { background: color-mix(in srgb, var(--hcomp) 28%, transparent); border-color: color-mix(in srgb, var(--hcomp) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--hcomp) 15%, transparent); }
   .cal-cell.hcomp .cal-cell-sub { color: var(--hcomp); }
-  .cal-cell.block { background: color-mix(in srgb, var(--warn) 22%, transparent); border-color: color-mix(in srgb, var(--block) 50%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--block) 15%, transparent); }
+  .cal-cell.block { background: color-mix(in srgb, var(--warn) 28%, transparent); border-color: color-mix(in srgb, var(--block) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--block) 15%, transparent); }
   .cal-cell.block .cal-cell-num, .cal-cell.block .cal-cell-sub { color: var(--block); }
-  .cal-cell.fmla { background: color-mix(in srgb, var(--fmla) 22%, transparent); border-color: color-mix(in srgb, var(--fmla) 50%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--fmla) 15%, transparent); }
+  .cal-cell.fmla { background: color-mix(in srgb, var(--fmla) 28%, transparent); border-color: color-mix(in srgb, var(--fmla) 60%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--fmla) 15%, transparent); }
   .cal-cell.fmla .cal-cell-sub { color: var(--fmla); }
   .cal-cell.fmla-p2 { background: color-mix(in srgb, var(--period) 18%, transparent); border-color: color-mix(in srgb, var(--period) 18%, transparent); }
   .cal-cell.fmla-p2 .cal-cell-sub { color: var(--period); }
