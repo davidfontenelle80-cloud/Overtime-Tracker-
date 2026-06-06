@@ -1,29 +1,17 @@
 /**
  * sw.js — KHub Boilerplate
- * Version: v2
+ * Version: v4
  *
  * Responsibilities:
  *  1. Precache the app shell on install
  *  2. Serve from cache (cache-first), fall back to network
  *  3. Purge old caches on activate
- *  4. Respond to SKIP_WAITING message (user clicked Refresh)
+ *  4. skipWaiting on install — activates immediately without waiting
  *  5. Broadcast RELOAD_READY to all clients after activation
- *
- * Update-check timing (12-hour interval) is owned by the page (app.js)
- * because the SW can be suspended by the browser at any time.
- * The page calls registration.update() → browser re-fetches sw.js →
- * if content changed, new SW installs → page receives 'updatefound' →
- * shows banner or quietly reloads depending on "safe" state.
- *
- * BUMP THIS VERSION STRING on every deploy so the cache key changes.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v3';
+const CACHE_VERSION = 'overtime-tracker-v4';
 
-/**
- * All URLs that make up the app shell.
- * Add any new JS/CSS files here when you create them.
- */
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -47,25 +35,18 @@ const PRECACHE_URLS = [
   './js/firebase/cloud-backup.js',
 ];
 
-// ── Install ──────────────────────────────────────────────────
-// Cache every app-shell URL. If any fail, the install aborts —
-// that keeps the old SW serving until a complete set is ready.
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
       .then(cache => cache.addAll(PRECACHE_URLS))
       .then(() => {
-        // Don't skipWaiting here — let the page decide when to swap.
-        // skipWaiting is sent via message after the user acknowledges.
-        console.log('[KHub SW] Installed — waiting for activation signal.');
+        self.skipWaiting();
+        console.log('[KHub SW] Installed — skipping wait, activating immediately.');
       })
       .catch(err => console.error('[KHub SW] Install failed:', err))
   );
 });
 
-// ── Activate ─────────────────────────────────────────────────
-// Delete every cache that isn't the current version,
-// then take control of all open pages immediately.
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
@@ -79,7 +60,6 @@ self.addEventListener('activate', event => {
       ))
       .then(() => self.clients.claim())
       .then(() => {
-        // Broadcast to all tabs: "new version is now active, safe to reload"
         self.clients.matchAll({ type: 'window' }).then(clients => {
           clients.forEach(client => client.postMessage({ type: 'RELOAD_READY' }));
         });
@@ -87,25 +67,16 @@ self.addEventListener('activate', event => {
   );
 });
 
-// ── Fetch ────────────────────────────────────────────────────
-// Strategy: cache-first for app shell, network-only for everything else.
-// This keeps the app fast offline while letting API calls go through.
 self.addEventListener('fetch', event => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
-
-  // Only handle same-origin requests (skip cross-origin APIs/CDNs)
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
-
-      // Not in cache — fetch from network and cache the response
       return fetch(event.request)
         .then(response => {
-          // Only cache valid responses
           if (!response || response.status !== 200 || response.type !== 'basic') {
             return response;
           }
@@ -114,22 +85,15 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() => {
-          // Network failed and not in cache — nothing we can do
           console.warn('[KHub SW] Fetch failed (offline?) for:', event.request.url);
         });
     })
   );
 });
 
-// ── Messages ─────────────────────────────────────────────────
-// SKIP_WAITING: sent by app.js when user clicks "Refresh" on the update banner.
-// SW skips the waiting phase and activates immediately.
 self.addEventListener('message', event => {
   if (!event.data) return;
-
   if (event.data.type === 'SKIP_WAITING') {
-    console.log('[KHub SW] SKIP_WAITING received — activating new version.');
     self.skipWaiting();
   }
 });
-
