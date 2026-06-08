@@ -146,8 +146,8 @@
   function authMessage(e) {
     var code = e && (e.code || e.message) || '';
     if (code.indexOf('auth/user-not-found') !== -1) return 'No account found for that email.';
-    if (code.indexOf('auth/wrong-password') !== -1 || code.indexOf('auth/invalid-credential') !== -1) return 'Email or password was not correct.';
-    if (code.indexOf('auth/email-already-in-use') !== -1) return 'That email already has an account. Try signing in.';
+    if (code.indexOf('auth/wrong-password') !== -1 || code.indexOf('auth/invalid-credential') !== -1) return 'Email or password was not correct. Try Sign in with your existing password, or tap Reset password.';
+    if (code.indexOf('auth/email-already-in-use') !== -1) return 'That email already has an account. Tap Sign in instead of Create account.';
     if (code.indexOf('auth/weak-password') !== -1) return 'Use a password with at least 6 characters.';
     if (code.indexOf('auth/invalid-email') !== -1) return 'Enter a valid email address.';
     if (code.indexOf('auth/configuration-not-found') !== -1) return 'Cloud sign-in is not enabled yet. In Firebase Authentication, enable Email/Password sign-in.';
@@ -155,6 +155,9 @@
     if (code.indexOf('auth/unauthorized-domain') !== -1) return 'This website is not authorized for Google sign-in. Add davidfontenelle80-cloud.github.io in Firebase Authentication settings.';
     if (code.indexOf('auth/popup-blocked') !== -1) return 'The Google sign-in popup was blocked. Allow popups for this site and try again.';
     if (code.indexOf('auth/popup-closed-by-user') !== -1 || code.indexOf('auth/cancelled-popup-request') !== -1) return 'Google sign-in was cancelled. Try again when you are ready.';
+    if (code.indexOf('auth/network-request-failed') !== -1) return 'Cloud sign-in could not reach Firebase. Check your connection and try again.';
+    if (code.indexOf('auth/too-many-requests') !== -1) return 'Firebase temporarily blocked sign-in attempts. Wait a few minutes, then try again.';
+    if (code.indexOf('auth-timeout') !== -1) return 'Cloud sign-in is taking too long. Check your connection and tap Sign in again.';
     if (code.indexOf('permission-denied') !== -1 || code.indexOf('Missing or insufficient permissions') !== -1) return 'Cloud backup is blocked by Firestore rules. Update rules to allow backups/{appId}/users/{yourUserId}.';
     return e && e.message ? e.message : 'Cloud account failed.';
   }
@@ -171,11 +174,7 @@
       overlay.innerHTML =
         '<div style="width:min(420px,100%);background:#fff;color:#111827;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.35);">' +
           '<h3 id="khubCloudAuthTitle" style="margin:0 0 8px;font-size:18px;color:#111827;">Cloud account</h3>' +
-          '<p style="margin:0 0 12px;color:#4b5563;font-size:13px;line-height:1.4;">Use Google, or use the same email/password on every device. Each person needs their own account.</p>' +
-          '<button id="khubCloudGoogle" type="button" style="box-sizing:border-box;width:100%;padding:11px 12px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#111827;font-weight:700;margin:2px 0 10px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
-            '<span style="font-size:16px;line-height:1;">G</span><span>Continue with Google</span>' +
-          '</button>' +
-          '<div style="display:flex;align-items:center;gap:10px;color:#6b7280;font-size:12px;margin:2px 0 10px;"><span style="height:1px;background:#e5e7eb;flex:1;"></span><span>or</span><span style="height:1px;background:#e5e7eb;flex:1;"></span></div>' +
+          '<p style="margin:0 0 12px;color:#4b5563;font-size:13px;line-height:1.4;">Sign in with the same email and password on every device. Use Sign in if the email already exists; use Create account only the first time.</p>' +
           '<label style="display:block;font-size:13px;font-weight:700;margin:10px 0 6px;color:#374151;">Email</label>' +
           '<input id="khubCloudEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" style="box-sizing:border-box;width:100%;padding:11px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#111827;">' +
           '<label id="khubCloudPasswordLabel" style="display:block;font-size:13px;font-weight:700;margin:10px 0 6px;color:#374151;">Password</label>' +
@@ -199,35 +198,50 @@
       }, 100);
       var close = function () { overlay.remove(); };
       var busy = function (on) {
-        ['khubCloudGoogle', 'khubCloudSignIn', 'khubCloudCreate', 'khubCloudReset'].forEach(function (id) {
+        ['khubCloudSignIn', 'khubCloudCreate', 'khubCloudReset'].forEach(function (id) {
           var b = document.getElementById(id);
           if (b) b.disabled = on;
         });
       };
-      var run = function (promiseFactory, successText) {
-        errEl.textContent = '';
+      var run = function (promiseFactory, successText, waitText) {
+        var done = false;
+        var timeoutId;
+        errEl.style.color = '#4b5563';
+        errEl.textContent = waitText || 'Signing in...';
         busy(true);
+        timeoutId = setTimeout(function () {
+          if (done) return;
+          done = true;
+          errEl.style.color = '#dc2626';
+          errEl.textContent = authMessage({ code: 'auth-timeout' });
+          busy(false);
+        }, 15000);
         promiseFactory().then(function (result) {
+          if (done) return;
+          done = true;
+          clearTimeout(timeoutId);
           close();
           resolve(successText || result);
         }).catch(function (e) {
+          if (done) return;
+          done = true;
+          clearTimeout(timeoutId);
+          errEl.style.color = '#dc2626';
           errEl.textContent = authMessage(e);
           busy(false);
         });
       };
       document.getElementById('khubCloudCancel').onclick = function () { close(); resolve(null); };
-      document.getElementById('khubCloudGoogle').onclick = function () {
-        run(function () { return window.KHub.CloudAuth.signInWithGoogle(); }, 'signed-in');
-      };
+
       document.getElementById('khubCloudSignIn').onclick = function () {
-        run(function () { return window.KHub.CloudAuth.signIn(emailEl.value, passEl.value); }, 'signed-in');
+        run(function () { return window.KHub.CloudAuth.signIn(emailEl.value, passEl.value); }, 'signed-in', 'Signing in...');
       };
       document.getElementById('khubCloudCreate').onclick = function () {
-        run(function () { return window.KHub.CloudAuth.signUp(emailEl.value, passEl.value); }, 'created');
+        run(function () { return window.KHub.CloudAuth.signUp(emailEl.value, passEl.value); }, 'created', 'Creating account...');
       };
       document.getElementById('khubCloudReset').onclick = function () {
         if (!emailEl.value.trim()) { errEl.textContent = 'Enter your email first.'; return; }
-        run(function () { return window.KHub.CloudAuth.resetPassword(emailEl.value); }, 'reset-sent');
+        run(function () { return window.KHub.CloudAuth.resetPassword(emailEl.value); }, 'reset-sent', 'Sending reset email...');
       };
       overlay.addEventListener('click', function (e) { if (e.target === overlay) { close(); resolve(null); } });
       emailEl.focus();
