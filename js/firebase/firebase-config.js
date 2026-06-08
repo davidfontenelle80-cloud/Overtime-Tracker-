@@ -1,19 +1,12 @@
 /**
- * firebase-config.js — Ministry Tracker
- * Initializes Firebase and exposes KHub.Firebase (app + db).
- *
- * Activated by: KHub.Config.features.firebase = true  (js/config.js)
- * Load order in index.html:
- *   1. Firebase SDK compat scripts (CDN)
- *   2. js/config.js
- *   3. THIS FILE
- *   4. ...rest of app scripts
+ * firebase-config.js - KHub Firebase init.
+ * Initializes Firebase and exposes KHub.Firebase (app + db + auth).
  */
 (function () {
   'use strict';
 
   if (!window.KHub?.Config?.features?.firebase) {
-    return; // feature flag off — skip silently
+    return;
   }
 
   const firebaseConfig = {
@@ -27,13 +20,14 @@
   };
 
   try {
-    const app = firebase.initializeApp(firebaseConfig);
-    const db  = firebase.firestore();
+    const app = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
 
     window.KHub = window.KHub || {};
-    window.KHub.Firebase = { app, db };
+    window.KHub.Firebase = { app, db, auth };
 
-    KHub.Config.log('[Firebase] initialized — project:', firebaseConfig.projectId);
+    KHub.Config.log('[Firebase] initialized - project:', firebaseConfig.projectId);
   } catch (err) {
     console.error('[KHub.Firebase] init failed:', err);
   }

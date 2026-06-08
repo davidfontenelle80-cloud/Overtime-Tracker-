@@ -2104,24 +2104,49 @@
     else if (action === 'export') { doExport(); }
     else if (action === 'import') { document.getElementById('fileInput').click(); }
     else if (action === 'cloud-save') {
-      if (!window.KHub?.Firebase?.db) { showToast('Cloud backup unavailable', 'error'); return; }
-      KHub.CloudBackup.save('overtime-tracker',
-        ['tracker-v3-data', 'tracker-v3-theme', 'tracker-v3-settings', 'tracker-v3-meta'])
-        .then(function() { showToast('Saved to cloud ☁'); render(); })
-        .catch(function(e) { showToast('Cloud save failed', 'error'); console.error(e); });
+      if (!window.KHub?.Firebase?.db || !window.KHub?.CloudBackup || !window.KHub?.CloudAuth) { showToast('Cloud backup unavailable', 'error'); return; }
+      var saveCloud = function() {
+        KHub.CloudBackup.save('overtime-tracker',
+          ['tracker-v3-data', 'tracker-v3-theme', 'tracker-v3-settings', 'tracker-v3-meta'])
+          .then(function() { showToast('Saved to cloud'); render(); })
+          .catch(function(e) {
+            if (e && e.code === 'auth-required') {
+              KHub.CloudAuth.openDialog().then(function(result) { if (result) saveCloud(); });
+              return;
+            }
+            showToast(KHub.CloudAuth.authMessage(e) || 'Cloud save failed', 'error');
+            console.error(e);
+          });
+      };
+      if (!KHub.CloudAuth.currentUser()) {
+        KHub.CloudAuth.openDialog().then(function(result) { if (result) saveCloud(); });
+      } else {
+        saveCloud();
+      }
     }
     else if (action === 'cloud-restore') {
-      if (!window.KHub?.Firebase?.db) { showToast('Cloud backup unavailable', 'error'); return; }
-      showConfirm('Restore from Cloud', 'Replace all data with your cloud backup? This cannot be undone.', function() {
-        KHub.CloudBackup.restore('overtime-tracker',
-          ['tracker-v3-data', 'tracker-v3-theme', 'tracker-v3-settings', 'tracker-v3-meta'],
-          null,
-          function() { showToast('Restored from cloud ☁'); setTimeout(function(){ location.reload(); }, 800); }
-        ).catch(function(e) {
-          var msg = e.message === 'no-backup' ? 'No cloud backup found for this device' : 'Cloud restore failed';
-          showToast(msg, 'error'); console.error(e);
+      if (!window.KHub?.Firebase?.db || !window.KHub?.CloudBackup || !window.KHub?.CloudAuth) { showToast('Cloud backup unavailable', 'error'); return; }
+      var restoreCloud = function() {
+        showConfirm('Restore from Cloud', 'Replace all data with your cloud backup? This cannot be undone.', function() {
+          KHub.CloudBackup.restore('overtime-tracker',
+            ['tracker-v3-data', 'tracker-v3-theme', 'tracker-v3-settings', 'tracker-v3-meta'],
+            null,
+            function() { showToast('Restored from cloud'); setTimeout(function(){ location.reload(); }, 800); }
+          ).catch(function(e) {
+            if (e && e.code === 'auth-required') {
+              KHub.CloudAuth.openDialog().then(function(result) { if (result) restoreCloud(); });
+              return;
+            }
+            var msg = e.message === 'no-backup' ? 'No cloud backup found for this account' : (KHub.CloudAuth.authMessage(e) || 'Cloud restore failed');
+            showToast(msg, 'error'); console.error(e);
+          });
         });
-      });
+      };
+      if (!KHub.CloudAuth.currentUser()) {
+        KHub.CloudAuth.openDialog().then(function(result) { if (result) restoreCloud(); });
+      } else {
+        restoreCloud();
+      }
     }
     else if (action === 'goto-settings') { haptic('light'); state.tab = 'settings'; render(); }
     else if (action === 'modal-ok') {

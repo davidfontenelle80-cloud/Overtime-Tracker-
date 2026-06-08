@@ -18,7 +18,7 @@
  * BUMP THIS VERSION STRING on every deploy so the cache key changes.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v7-period-ring';
+const CACHE_VERSION = 'overtime-tracker-v8-cloud-auth-backup';
 
 /**
  * All URLs that make up the app shell.
