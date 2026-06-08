@@ -18,7 +18,7 @@
  * BUMP THIS VERSION STRING on every deploy so the cache key changes.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v9-email-auth-timeout';
+const CACHE_VERSION = 'overtime-tracker-v10-email-only-auth';
 
 /**
  * All URLs that make up the app shell.

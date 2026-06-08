@@ -112,30 +112,6 @@
     return false;
   }
 
-  function useGoogleRedirect() {
-    var ua = (navigator && navigator.userAgent) || '';
-    var standalone = false;
-    try {
-      standalone = !!(navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
-    } catch (e) {}
-    return standalone || /iPhone|iPad|iPod|Android/i.test(ua);
-  }
-
-  function googleProvider() {
-    var provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    return provider;
-  }
-
-  function finishGoogleRedirect() {
-    var notReady = ensureReady(false);
-    if (notReady) return notReady;
-    if (!auth().getRedirectResult) return Promise.resolve(null);
-    return auth().getRedirectResult().catch(function (e) {
-      console.warn('[CloudAuth] Google redirect result failed:', e);
-      return null;
-    });
-  }
 
   function getLatestSnapshot(appId) {
     return latestRef(appId).get().catch(function (e) {
@@ -151,10 +127,6 @@
     if (code.indexOf('auth/weak-password') !== -1) return 'Use a password with at least 6 characters.';
     if (code.indexOf('auth/invalid-email') !== -1) return 'Enter a valid email address.';
     if (code.indexOf('auth/configuration-not-found') !== -1) return 'Cloud sign-in is not enabled yet. In Firebase Authentication, enable Email/Password sign-in.';
-    if (code.indexOf('auth/requests-from-referer') !== -1) return 'This website is blocked by the Google API key restriction. Add https://davidfontenelle80-cloud.github.io/* to allowed websites.';
-    if (code.indexOf('auth/unauthorized-domain') !== -1) return 'This website is not authorized for Google sign-in. Add davidfontenelle80-cloud.github.io in Firebase Authentication settings.';
-    if (code.indexOf('auth/popup-blocked') !== -1) return 'The Google sign-in popup was blocked. Allow popups for this site and try again.';
-    if (code.indexOf('auth/popup-closed-by-user') !== -1 || code.indexOf('auth/cancelled-popup-request') !== -1) return 'Google sign-in was cancelled. Try again when you are ready.';
     if (code.indexOf('auth/network-request-failed') !== -1) return 'Cloud sign-in could not reach Firebase. Check your connection and try again.';
     if (code.indexOf('auth/too-many-requests') !== -1) return 'Firebase temporarily blocked sign-in attempts. Wait a few minutes, then try again.';
     if (code.indexOf('auth-timeout') !== -1) return 'Cloud sign-in is taking too long. Check your connection and tap Sign in again.';
@@ -266,20 +238,6 @@
       if (notReady) return notReady;
       return auth().createUserWithEmailAndPassword(String(email || '').trim(), password);
     },
-    signInWithGoogle: function () {
-      var notReady = ensureReady(false);
-      if (notReady) return notReady;
-      var provider = googleProvider();
-      if (useGoogleRedirect() && auth().signInWithRedirect) {
-        return auth().signInWithRedirect(provider).then(function () { return 'redirect-started'; });
-      }
-      return auth().signInWithPopup(provider).catch(function (e) {
-        if ((e && (e.code === 'auth/popup-blocked' || e.code === 'auth/cancelled-popup-request')) && auth().signInWithRedirect) {
-          return auth().signInWithRedirect(provider).then(function () { return 'redirect-started'; });
-        }
-        throw e;
-      });
-    },
     signOut: function () {
       var a = auth();
       return a ? a.signOut() : Promise.resolve();
@@ -290,7 +248,6 @@
       return auth().sendPasswordResetEmail(String(email || '').trim());
     },
     openDialog: openAuthDialog,
-    finishGoogleRedirect: finishGoogleRedirect,
     authMessage: authMessage
   };
 
