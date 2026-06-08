@@ -18,7 +18,7 @@
  * BUMP THIS VERSION STRING on every deploy so the cache key changes.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v11-auto-cloud-sync';
+const CACHE_VERSION = 'overtime-tracker-v12-specific-error-labels';
 
 /**
  * All URLs that make up the app shell.
