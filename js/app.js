@@ -2539,9 +2539,56 @@
   applyMonthlyAccrual(false);
   // Keep a midnight watcher running so the 1st is caught without a manual refresh
   scheduleMidnightAccrualCheck();
-  // Auto-save to cloud silently on close / hide
-  if (window.KHub?.CloudBackup) {
-    KHub.CloudBackup.autoSave('overtime-tracker',
-      ['tracker-v3-data', 'tracker-v3-theme', 'tracker-v3-settings', 'tracker-v3-meta']);
+  // Cloud sync: pull newer cloud data on open/resume and push edits shortly after changes.
+  if (window.KHub?.CloudBackup && window.KHub?.CloudAuth) {
+    var OT_CLOUD_APP = 'overtime-tracker';
+    var OT_CLOUD_KEYS = ['tracker-v3-data', 'tracker-v3-theme', 'tracker-v3-settings', 'tracker-v3-meta'];
+    var otAutoSaveStarted = false;
+    var otCloudSaveTimer = null;
+    var otCloudChecking = false;
+    var otCloudSaving = false;
+
+    function otCloudUser() { return KHub.CloudAuth.currentUser(); }
+    function checkOvertimeCloudLatest() {
+      if (!otCloudUser() || otCloudChecking) return Promise.resolve();
+      otCloudChecking = true;
+      return KHub.CloudBackup.restoreLatestIfNewer(OT_CLOUD_APP, OT_CLOUD_KEYS, null, function() {
+        location.reload();
+      }).catch(function(e) {
+        console.warn('[OvertimeCloud] restore check failed', e);
+      }).finally(function() { otCloudChecking = false; });
+    }
+    function saveOvertimeCloudSoon() {
+      if (!otCloudUser()) return;
+      clearTimeout(otCloudSaveTimer);
+      otCloudSaveTimer = setTimeout(function() {
+        if (otCloudSaving || !otCloudUser()) return;
+        otCloudSaving = true;
+        KHub.CloudBackup.save(OT_CLOUD_APP, OT_CLOUD_KEYS)
+          .catch(function(e) { console.warn('[OvertimeCloud] auto save failed', e); })
+          .finally(function() { otCloudSaving = false; });
+      }, 1800);
+    }
+
+    KHub.CloudAuth.onChange(function(user) {
+      if (!user) return;
+      checkOvertimeCloudLatest().finally(function() {
+        if (!otAutoSaveStarted) {
+          otAutoSaveStarted = true;
+          KHub.CloudBackup.autoSave(OT_CLOUD_APP, OT_CLOUD_KEYS);
+          document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') checkOvertimeCloudLatest();
+            else saveOvertimeCloudSoon();
+          });
+          window.addEventListener('focus', checkOvertimeCloudLatest);
+          window.addEventListener('online', checkOvertimeCloudLatest);
+          document.addEventListener('input', saveOvertimeCloudSoon, true);
+          document.addEventListener('change', saveOvertimeCloudSoon, true);
+          document.addEventListener('click', function(e) {
+            if (e && e.target && e.target.closest('button,[data-action],input,select,textarea')) saveOvertimeCloudSoon();
+          }, true);
+        }
+      });
+    });
   }
 })();

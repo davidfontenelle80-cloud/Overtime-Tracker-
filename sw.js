@@ -18,7 +18,7 @@
  * BUMP THIS VERSION STRING on every deploy so the cache key changes.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v10-email-only-auth';
+const CACHE_VERSION = 'overtime-tracker-v11-auto-cloud-sync';
 
 /**
  * All URLs that make up the app shell.
@@ -124,7 +124,3 @@ self.addEventListener('message', event => {
     self.skipWaiting();
   }
 });
-
-
-
-
