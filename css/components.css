@@ -1,20 +1,22 @@
 /**
- * components.css — KHub mobile app chrome
+ * components.css - KHub mobile app chrome
  * Keep this file intentionally light. App-specific classes such as .card,
  * .btn, .modal, and inputs belong in main.css so generated apps keep their
  * own visual language.
  */
 
 :root {
-  --khub-bg: var(--bg, #07080c);
-  --khub-surface: var(--surface, var(--card, #14171f));
-  --khub-surface-sub: var(--surface-sub, var(--input-bg, #1b1f2a));
+  --khub-bg: var(--bg, #050607);
+  --khub-surface: var(--surface, var(--card, #111318));
+  --khub-surface-sub: var(--surface-sub, var(--input-bg, #29283d));
   --khub-border: var(--border, rgba(255,255,255,0.07));
-  --khub-text: var(--text, #f5f7fa);
+  --khub-text: var(--text, #f7f8fb);
   --khub-muted: var(--text-dim, var(--muted, #a0aab8));
-  --khub-accent: var(--accent, var(--ot, #34d399));
-  --khub-danger: var(--danger, var(--coral, #ef4444));
-  --khub-radius: 18px;
+  --khub-accent: var(--accent, var(--ot, #58c18f));
+  --khub-danger: var(--danger, var(--coral, #ff5d5d));
+  --khub-on-accent: var(--color-on-primary, #06120e);
+  --khub-code-bg: rgba(0,0,0,.18);
+  --khub-radius: var(--radius-lg, 18px);
   --khub-shadow: 0 16px 40px rgba(0,0,0,.45);
 }
 
@@ -27,8 +29,8 @@
   opacity: 0;
   pointer-events: none;
   background: var(--khub-accent);
-  color: #06120e;
-  border-radius: 999px;
+  color: var(--khub-on-accent);
+  border-radius: var(--radius-full);
   padding: 10px 14px;
   font-weight: 800;
   text-decoration: none;
@@ -67,9 +69,9 @@
 .update-notice[hidden] { display: none !important; }
 .update-notice button {
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--khub-accent);
-  color: #06120e;
+  color: var(--khub-on-accent);
   padding: 8px 12px;
   font-weight: 800;
   min-height: 36px;
@@ -84,8 +86,8 @@
   max-width: 480px;
   margin: 0 auto;
   padding: 16px;
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--khub-surface) 94%, #2b0f12 6%);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--khub-surface) 94%, var(--khub-danger) 6%);
   border: 1px solid color-mix(in srgb, var(--khub-danger) 45%, var(--khub-border));
   color: var(--khub-text);
   box-shadow: var(--khub-shadow);
@@ -95,7 +97,7 @@
 .error-boundary p { margin: 0 0 12px; color: var(--khub-muted); line-height: 1.45; }
 .error-boundary button {
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--khub-danger);
   color: white;
   padding: 9px 12px;
@@ -109,7 +111,7 @@
   gap: 8px;
   min-width: 0;
   padding: 6px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--khub-surface-sub);
   border: 1px solid var(--khub-border);
   color: var(--khub-text);
@@ -117,11 +119,11 @@
 .auth-avatar {
   width: 30px;
   height: 30px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   display: grid;
   place-items: center;
   background: var(--khub-accent);
-  color: #06120e;
+  color: var(--khub-on-accent);
   font-size: 12px;
   font-weight: 900;
 }
@@ -137,10 +139,10 @@
 .error-boundary-details {
   margin: 10px 0 12px;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--khub-danger, #ef476f) 35%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--khub-danger, #ef476f) 8%, transparent);
-  color: var(--khub-text, inherit);
+  border: 1px solid color-mix(in srgb, var(--khub-danger) 35%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--khub-danger) 8%, transparent);
+  color: var(--khub-text);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -148,17 +150,6 @@
   display: inline-block;
   margin-top: 2px;
   padding: 2px 6px;
-  border-radius: 6px;
-  background: rgba(0,0,0,.18);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  word-break: break-word;
-}
-.error-boundary-help {
-  margin-top: 6px;
-  color: var(--khub-muted, #8a8f98);
-}
-.error-boundary-footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+  border-radius: var(--radius-sm);
+  background: var(--khub-code-bg);
+  font-family: ui-mo

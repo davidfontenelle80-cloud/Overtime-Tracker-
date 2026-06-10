@@ -18,7 +18,7 @@
  * BUMP THIS VERSION STRING on every deploy so the cache key changes.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v12-specific-error-labels';
+const CACHE_VERSION = 'overtime-tracker-v13-khub-token-plumbing';
 
 /**
  * All URLs that make up the app shell.

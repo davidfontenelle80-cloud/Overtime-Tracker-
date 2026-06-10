@@ -1,5 +1,5 @@
 /**
- * dark-mode.css — KHub style tokens
+ * dark-mode.css - KHub style tokens
  * Default KHub apps are dark, mobile-first, and app-like. App main.css may
  * define richer tokens; these are only shared fallbacks.
  */
@@ -7,38 +7,38 @@
 html[data-theme="dark"],
 [data-theme="dark"] {
   color-scheme: dark;
-  --color-primary: #34d399;
-  --color-primary-dark: #6ee7b7;
-  --color-accent: #34d399;
-  --color-bg: #07080c;
-  --color-surface: #14171f;
-  --color-border: rgba(255,255,255,.07);
-  --color-text: #f5f7fa;
-  --color-text-muted: #a0aab8;
+  --color-primary: #58c18f;
+  --color-primary-dark: #78d6a8;
+  --color-accent: #58c18f;
+  --color-bg: #050607;
+  --color-surface: #111318;
+  --color-border: rgba(143,151,184,.18);
+  --color-text: #f7f8fb;
+  --color-text-muted: #a0a8bd;
   --color-text-inverse: #06120e;
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-  --color-error: #fb7185;
-  --color-info: #60a5fa;
+  --color-success: #58c18f;
+  --color-warning: #f5aa2e;
+  --color-error: #ff5d5d;
+  --color-info: #7aa2ff;
   --shadow-sm: 0 1px 3px rgba(0,0,0,.45);
   --shadow-md: 0 10px 28px rgba(0,0,0,.48);
 }
 html[data-theme="light"],
 [data-theme="light"] {
   color-scheme: light;
-  --color-primary: #10b981;
-  --color-primary-dark: #047857;
-  --color-accent: #10b981;
-  --color-bg: #f5f7fa;
+  --color-primary: #58c18f;
+  --color-primary-dark: #2f9d68;
+  --color-accent: #f5aa2e;
+  --color-bg: #eef1f5;
   --color-surface: #ffffff;
-  --color-border: rgba(15,23,42,.08);
+  --color-border: rgba(16,24,40,.12);
   --color-text: #0f172a;
   --color-text-muted: #64748b;
-  --color-text-inverse: #ffffff;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #dc2626;
-  --color-info: #3b82f6;
+  --color-text-inverse: #f7f8fb;
+  --color-success: #12a06a;
+  --color-warning: #c47f12;
+  --color-error: #d92d3f;
+  --color-info: #2f6fed;
   --shadow-sm: 0 1px 2px rgba(15,23,42,.04), 0 2px 8px rgba(15,23,42,.03);
   --shadow-md: 0 12px 32px rgba(15,23,42,.10);
 }

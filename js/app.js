@@ -796,10 +796,17 @@
 
   // === Theme ===
   function applyTheme() {
-    document.body.classList.toggle('light', state.theme === 'light');
+    var isLight = state.theme === 'light';
+    document.body.classList.toggle('light', isLight);
+    if (isLight) document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', state.theme === 'dark' ? '#0a0a0a' : '#f5f6f8');
-    try { localStorage.setItem(THEME_KEY, state.theme); } catch (e) {}
+    if (meta) meta.setAttribute('content', isLight ? '#eef1f5' : '#0b0d12');
+    try {
+      localStorage.setItem(THEME_KEY, state.theme);
+      localStorage.setItem('khub_theme', state.theme);
+      localStorage.setItem('khub_theme_override', 'true');
+    } catch (e) {}
     document.getElementById('themeBtn').innerHTML = state.theme === 'dark' ? icons.moon : icons.sun;
   }
   function setGreeting() {
