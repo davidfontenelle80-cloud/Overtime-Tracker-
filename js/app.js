@@ -1030,11 +1030,24 @@
 
   function initAllPickers() { /* time picker now handled via data-action delegation */ }
 
+  function cleanDecimal(value, places) {
+    var n = parseFloat(value);
+    if (isNaN(n) || !isFinite(n)) return 0;
+    var p = Math.pow(10, places || 2);
+    return Math.round(n * p) / p;
+  }
+
+  function settingDisplay(value) {
+    return cleanDecimal(value, 2);
+  }
+
   // Opens the keypad for a given settings field, with correct unit conversion in and out.
   function openSettingNumPad(field, unit, max) {
     var wd = state.settings.workdayHours || 7.5;
-    var balToDisp = function(hrs) { return state.balanceUnit === 'days' ? parseFloat((hrs / wd).toFixed(2)) : parseFloat(hrs.toFixed(2)); };
-    var dispToBal = function(v) { return state.balanceUnit === 'days' ? v * wd : v; };
+    var balToDisp = function(hrs) { return settingDisplay(state.balanceUnit === 'days' ? hrs / wd : hrs); };
+    var dispToBal = function(v) { return cleanDecimal(state.balanceUnit === 'days' ? v * wd : v, 4); };
+    var snapToDisp = function(days) { return settingDisplay(state.snapshotUnit === 'hours' ? days * wd : days); };
+    var dispToSnap = function(v) { return cleanDecimal(state.snapshotUnit === 'hours' ? v / wd : v, 4); };
     // field -> { get current display value, write confirmed display value back to state }
     var map = {
       setVac:        { cur: balToDisp(state.settings.vacationRemaining),       set: function(v){ state.settings.vacationRemaining = dispToBal(v); }, label: 'Vacation Available' },
@@ -1043,9 +1056,9 @@
       setHComp:      { cur: balToDisp(state.settings.hcompRemaining),          set: function(v){ state.settings.hcompRemaining = dispToBal(v); }, label: 'Holiday Comp Available' },
       setVacAccrual: { cur: balToDisp(state.settings.vacationMonthlyAccrual),  set: function(v){ state.settings.vacationMonthlyAccrual = dispToBal(v); }, label: 'Monthly Vacation Accrual' },
       setSickAccrual:{ cur: balToDisp(state.settings.sickMonthlyAccrual),      set: function(v){ state.settings.sickMonthlyAccrual = dispToBal(v); }, label: 'Monthly Sick Accrual' },
-      setFsick:      { cur: (state.snapshotUnit === 'hours' ? parseFloat((state.settings.familySickUsedDays * wd).toFixed(2)) : state.settings.familySickUsedDays), set: function(v){ state.settings.familySickUsedDays = state.snapshotUnit === 'hours' ? v / wd : v; }, label: 'Family Sick Used' },
-      setPL:         { cur: (state.snapshotUnit === 'hours' ? parseFloat((state.settings.plUsedDays * wd).toFixed(2)) : state.settings.plUsedDays), set: function(v){ state.settings.plUsedDays = state.snapshotUnit === 'hours' ? v / wd : v; }, label: 'PL Used' },
-      setWorkday:    { cur: state.settings.workdayHours, set: function(v){ state.settings.workdayHours = v > 0 ? v : 7.5; }, label: 'Workday Hours' }
+      setFsick:      { cur: snapToDisp(state.settings.familySickUsedDays), set: function(v){ state.settings.familySickUsedDays = dispToSnap(v); }, label: 'Family Sick Used' },
+      setPL:         { cur: snapToDisp(state.settings.plUsedDays), set: function(v){ state.settings.plUsedDays = dispToSnap(v); }, label: 'PL Used' },
+      setWorkday:    { cur: settingDisplay(state.settings.workdayHours), set: function(v){ state.settings.workdayHours = v > 0 ? cleanDecimal(v, 2) : 7.5; }, label: 'Workday Hours' }
     };
     var cfg = map[field];
     if (!cfg) return;
@@ -1705,7 +1718,7 @@
     var balInDays = state.balanceUnit === 'days';
     var balWD = state.settings.workdayHours || 7.5;
     var balUnitLabel = balInDays ? 'days' : 'hrs';
-    var toBalDisplay = function(hrs) { return balInDays ? parseFloat((hrs / balWD).toFixed(2)) : hrs; };
+    var toBalDisplay = function(hrs) { return settingDisplay(balInDays ? hrs / balWD : hrs); };
     html += '<div class="setting-row"><div class="label">Live Bank Baseline</div>';
     html += '<div class="text-xs muted mb-2">Enter available balances as of the date below. Saving changed balances asks for confirmation and becomes the new baseline going forward. Export a backup before major changes.</div>';
     html += '<div class="flex-between mb-2">';
@@ -1729,8 +1742,8 @@
     html += '<button class="small-btn" style="font-size:12px;padding:7px 14px;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;color:var(--text);cursor:pointer;width:100%" data-action="apply-accrual">Apply Monthly Accrual</button>';
 
     var snapInHours = state.snapshotUnit === 'hours';
-    var fsickDisplayVal = snapInHours ? parseFloat((state.settings.familySickUsedDays * WD()).toFixed(2)) : state.settings.familySickUsedDays;
-    var plDisplayVal = snapInHours ? parseFloat((state.settings.plUsedDays * WD()).toFixed(2)) : state.settings.plUsedDays;
+    var fsickDisplayVal = settingDisplay(snapInHours ? state.settings.familySickUsedDays * WD() : state.settings.familySickUsedDays);
+    var plDisplayVal = settingDisplay(snapInHours ? state.settings.plUsedDays * WD() : state.settings.plUsedDays);
     var snapUnitLabel = snapInHours ? 'hrs' : 'days';
     var fsickMax = snapInHours ? (10 * WD()) : 10;
     var plMax = snapInHours ? (3 * WD()) : 3;
@@ -2087,8 +2100,26 @@
       haptic('light');
       render();
     }
-    else if (action === 'snap-unit') { haptic('light'); state.snapshotUnit = el.getAttribute('data-unit'); render(); }
-    else if (action === 'balance-unit') { haptic('light'); state.balanceUnit = el.getAttribute('data-unit'); render(); }
+    else if (action === 'snap-unit') {
+      haptic('light');
+      state.snapshotUnit = el.getAttribute('data-unit');
+      state.settings.familySickUsedDays = cleanDecimal(state.settings.familySickUsedDays, 4);
+      state.settings.plUsedDays = cleanDecimal(state.settings.plUsedDays, 4);
+      saveSettings();
+      render();
+    }
+    else if (action === 'balance-unit') {
+      haptic('light');
+      state.balanceUnit = el.getAttribute('data-unit');
+      state.settings.vacationRemaining = cleanDecimal(state.settings.vacationRemaining, 4);
+      state.settings.sickRemaining = cleanDecimal(state.settings.sickRemaining, 4);
+      state.settings.compRemaining = cleanDecimal(state.settings.compRemaining, 4);
+      state.settings.hcompRemaining = cleanDecimal(state.settings.hcompRemaining, 4);
+      state.settings.vacationMonthlyAccrual = cleanDecimal(state.settings.vacationMonthlyAccrual, 4);
+      state.settings.sickMonthlyAccrual = cleanDecimal(state.settings.sickMonthlyAccrual, 4);
+      saveSettings();
+      render();
+    }
     else if (action === 'fmla-toggle') { haptic('light'); state.settings.fmlaEnabled = el.getAttribute('data-val') === 'on'; saveSettings(); render(); }
     else if (action === 'add-fmla-period') {
       haptic('light');
