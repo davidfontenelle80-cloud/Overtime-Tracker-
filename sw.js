@@ -10,7 +10,7 @@
  *  5. Broadcast RELOAD_READY to all clients after activation
  */
 
-const CACHE_VERSION = 'overtime-tracker-v19-simple-settings-back';
+const CACHE_VERSION = 'overtime-tracker-v20-half-settings-back';
 
 const PRECACHE_URLS = [
   './',
