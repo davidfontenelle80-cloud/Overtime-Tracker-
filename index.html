@@ -105,8 +105,7 @@
   </script>
   <script src="js/app.js"></script>
   <script>
-    // Settings screen back button helper. Keeps app.js stable while adding a
-    // clear exit path from Settings back to the last active main tab.
+    // Lightweight Settings back button. Avoids adding a full extra card/header.
     (function () {
       'use strict';
       var previousTab = 'home';
@@ -133,35 +132,26 @@
         var content = document.getElementById('content');
         if (!content) return;
         var inSettings = !!content.querySelector('#setUserName, #setBalanceDate, [data-action="save-settings"]');
-        var existing = document.getElementById('settingsBackBar');
+        var existing = document.getElementById('settingsBackButton');
         if (!inSettings) {
           if (existing) existing.remove();
           return;
         }
         if (existing) return;
 
-        var bar = document.createElement('div');
-        bar.id = 'settingsBackBar';
-        bar.className = 'card card-mb-sm';
-        bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;position:sticky;top:0;z-index:20;';
-
         var back = document.createElement('button');
+        back.id = 'settingsBackButton';
         back.type = 'button';
         back.className = 'small-btn';
         back.setAttribute('aria-label', 'Back from Settings');
         back.textContent = '← Back';
+        back.style.cssText = 'margin:0 0 10px 0;padding:8px 12px;border-radius:12px;width:auto;display:inline-flex;align-items:center;justify-content:center;line-height:1;';
         back.addEventListener('click', function () {
           try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
           goBack();
         });
 
-        var title = document.createElement('div');
-        title.className = 'label';
-        title.textContent = 'Settings';
-
-        bar.appendChild(back);
-        bar.appendChild(title);
-        content.insertBefore(bar, content.firstChild);
+        content.insertBefore(back, content.firstChild);
       }
 
       var observer = new MutationObserver(function () { ensureSettingsBackButton(); });
