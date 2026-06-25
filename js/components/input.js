@@ -10,11 +10,18 @@
     const group = document.createElement('div');
     group.className = 'input-group';
 
-    // Label
+    // Label — use textContent so user-provided labels cannot inject HTML.
     const labelEl = document.createElement('label');
     labelEl.className = 'input-label';
     labelEl.htmlFor = id;
-    labelEl.innerHTML = label + (required ? '<span class="required" aria-hidden="true">*</span>' : '');
+    labelEl.textContent = label;
+    if (required) {
+      const requiredEl = document.createElement('span');
+      requiredEl.className = 'required';
+      requiredEl.setAttribute('aria-hidden', 'true');
+      requiredEl.textContent = '*';
+      labelEl.appendChild(requiredEl);
+    }
     group.appendChild(labelEl);
 
     // Input
@@ -35,6 +42,8 @@
       hintEl.textContent = hint;
       input.setAttribute('aria-describedby', `${id}-hint ${id}-error`);
       group.appendChild(hintEl);
+    } else {
+      input.setAttribute('aria-describedby', `${id}-error`);
     }
 
     // Error
@@ -69,4 +78,3 @@
   window.KHub.Components = window.KHub.Components || {};
   window.KHub.Components.Input = { create };
 })();
-
