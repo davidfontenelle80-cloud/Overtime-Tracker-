@@ -12,6 +12,15 @@
 
   const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function trapFocus(modal) {
     const focusable = [...modal.querySelectorAll(FOCUSABLE)];
     if (!focusable.length) return;
@@ -38,18 +47,26 @@
     _backdrop.setAttribute('aria-modal', 'true');
     _backdrop.setAttribute('aria-labelledby', 'modal-title');
 
+    const safeTitle = esc(title);
+    const safeConfirm = confirmLabel ? esc(confirmLabel) : '';
+    const safeCancel = cancelLabel ? esc(cancelLabel) : '';
+
     _backdrop.innerHTML = `
       <div class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" id="modal-title">${title}</h2>
+          <h2 class="modal-title" id="modal-title">${safeTitle}</h2>
           <button class="btn btn-icon" id="modal-close" aria-label="Close dialog">✕</button>
         </div>
-        <div class="modal-body">${body}</div>
+        <div class="modal-body"></div>
         <div class="modal-footer">
-          ${cancelLabel ? `<button class="btn btn-secondary" id="modal-cancel">${cancelLabel}</button>` : ''}
-          ${confirmLabel ? `<button class="btn btn-primary" id="modal-confirm">${confirmLabel}</button>` : ''}
+          ${safeCancel ? `<button class="btn btn-secondary" id="modal-cancel">${safeCancel}</button>` : ''}
+          ${safeConfirm ? `<button class="btn btn-primary" id="modal-confirm">${safeConfirm}</button>` : ''}
         </div>
       </div>`;
+
+    const bodyEl = _backdrop.querySelector('.modal-body');
+    if (body instanceof Node) bodyEl.appendChild(body);
+    else bodyEl.innerHTML = String(body || '');
 
     document.body.appendChild(_backdrop);
     trapFocus(_backdrop);
@@ -79,4 +96,3 @@
   window.KHub.Components = window.KHub.Components || {};
   window.KHub.Components.Modal = { open, close };
 })();
-
