@@ -4,7 +4,7 @@
  *
  * Responsibilities:
  *  1. Precache the app shell on install
- *  *  2. Serve app shell network-first, fall back to cache
+ *  2. Serve app shell network-first, fall back to cache
  *  3. Purge old caches on activate
  *  4. Respond to SKIP_WAITING message (user clicked Refresh)
  *  5. Broadcast RELOAD_READY to all clients after activation
