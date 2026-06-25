@@ -18,7 +18,7 @@
  * BUMP THIS VERSION STRING on every deploy so the cache key changes.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v16-focus-select-guard';
+const CACHE_VERSION = 'overtime-tracker-v17-qa-hardening';
 
 /**
  * All URLs that make up the app shell.
