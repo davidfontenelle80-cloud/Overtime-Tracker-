@@ -104,6 +104,72 @@
     })();
   </script>
   <script src="js/app.js"></script>
+  <script>
+    // Settings screen back button helper. Keeps app.js stable while adding a
+    // clear exit path from Settings back to the last active main tab.
+    (function () {
+      'use strict';
+      var previousTab = 'home';
+      var allowedTabs = { home: true, calendar: true, log: true };
+
+      function activeTab() {
+        var active = document.querySelector('#nav .nav-btn.active[data-tab]');
+        var tab = active && active.getAttribute('data-tab');
+        return allowedTabs[tab] ? tab : previousTab;
+      }
+
+      document.addEventListener('click', function (event) {
+        var settingsBtn = event.target && event.target.closest && event.target.closest('#settingsBtn');
+        if (settingsBtn) previousTab = activeTab() || 'home';
+      }, true);
+
+      function goBack() {
+        var target = allowedTabs[previousTab] ? previousTab : 'home';
+        var btn = document.querySelector('#nav .nav-btn[data-tab="' + target + '"]') || document.querySelector('#nav .nav-btn[data-tab="home"]');
+        if (btn) btn.click();
+      }
+
+      function ensureSettingsBackButton() {
+        var content = document.getElementById('content');
+        if (!content) return;
+        var inSettings = !!content.querySelector('#setUserName, #setBalanceDate, [data-action="save-settings"]');
+        var existing = document.getElementById('settingsBackBar');
+        if (!inSettings) {
+          if (existing) existing.remove();
+          return;
+        }
+        if (existing) return;
+
+        var bar = document.createElement('div');
+        bar.id = 'settingsBackBar';
+        bar.className = 'card card-mb-sm';
+        bar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;position:sticky;top:0;z-index:20;';
+
+        var back = document.createElement('button');
+        back.type = 'button';
+        back.className = 'small-btn';
+        back.setAttribute('aria-label', 'Back from Settings');
+        back.textContent = '← Back';
+        back.addEventListener('click', function () {
+          try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
+          goBack();
+        });
+
+        var title = document.createElement('div');
+        title.className = 'label';
+        title.textContent = 'Settings';
+
+        bar.appendChild(back);
+        bar.appendChild(title);
+        content.insertBefore(bar, content.firstChild);
+      }
+
+      var observer = new MutationObserver(function () { ensureSettingsBackButton(); });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      document.addEventListener('DOMContentLoaded', ensureSettingsBackButton);
+      window.addEventListener('load', ensureSettingsBackButton);
+    })();
+  </script>
 
 </body>
 </html>
