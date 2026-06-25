@@ -105,7 +105,7 @@
   </script>
   <script src="js/app.js"></script>
   <script>
-    // Settings back button: half-width, centered text, visually aligned with app cards.
+    // Settings back button: large half-width style matching app cards.
     (function () {
       'use strict';
       var previousTab = 'home';
@@ -145,7 +145,7 @@
         back.className = 'small-btn';
         back.setAttribute('aria-label', 'Back from Settings');
         back.textContent = '←  Back';
-        back.style.cssText = 'margin:0 0 14px 0;padding:14px 18px;border-radius:14px;width:min(44%,380px);min-width:220px;min-height:48px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:15px;font-weight:700;color:var(--accent);border:1px solid var(--accent);background:var(--card);box-shadow:none;line-height:1;';
+        back.style.cssText = 'margin:0 0 18px 0;padding:16px 20px;border-radius:14px;width:clamp(300px,36%,400px);max-width:100%;min-height:56px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:16px;font-weight:800;color:var(--accent);border:1.5px solid var(--accent);background:rgba(16,20,30,.82);box-shadow:none;line-height:1;';
         back.addEventListener('click', function () {
           try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
           goBack();
