@@ -93,8 +93,17 @@
   <script src="js/components/card.js"></script>
   <script src="js/components/input.js"></script>
   <script src="js/perf.js"></script>
+  <script>
+    // Defensive guard: app.js focus handlers call .select() on controls marked
+    // as setting/hour inputs. Native text inputs still use their real select(),
+    // while date/select/button/custom controls safely no-op instead of throwing.
+    (function () {
+      if (typeof Element !== 'undefined' && typeof Element.prototype.select !== 'function') {
+        Element.prototype.select = function () {};
+      }
+    })();
+  </script>
   <script src="js/app.js"></script>
 
 </body>
 </html>
-
