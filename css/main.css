@@ -12,14 +12,14 @@
   [data-theme="light"] body, body.light { --bg: #dde3ec; --card: #ffffff; --panel: #f1f4fb; --panel-2: #e7ecf7; --border: #b8c4d4; --panel-border: #c2cadb; --text: #0f172a; --muted: #64748b; --dim: #94a3b8; --input-bg: #edf1f7; --input-border: #b8c4d4; --nav-bg: #ffffff; --cell-bg: #f0f4f9; --bar-bg: #c8d3e0; --ring: rgba(5,150,105,0.22); --green-bg: #d9f3e7; --amber-bg: #fff1d6; --red-bg: #ffe3e3; --purple-bg: #efe7ff; --period-ring: #8b35e8; --period-ring-glow: rgba(139,53,232,0.36); }
 
   /* Category colors */
-  :root { --ot: #58c18f; --vac: #66c7ff; --sick: #ff5d5d; --fsick: #e85fad; --pl: #62c8bd; --comp: #ff6868; --hcomp: #ff9a54; --block: #f5aa2e; --period: #a96aff; --fmla: #7aa2ff; --warn: #f5aa2e; --danger: #ff5d5d; }
-  [data-theme="light"] body, body.light { --ot: #059669; --vac: #0284c7; --sick: #dc2626; --fsick: #db2777; --pl: #0d9488; --comp: #16a34a; --hcomp: #ea580c; --block: #d97706; --period: #9333ea; --fmla: #2563eb; }
+  :root { --ot: #58c18f; --vac: #66c7ff; --sick: #ff5d5d; --fsick: #e85fad; --sfun: #ff8fb3; --sfun2: #c77bde; --pl: #62c8bd; --comp: #ff6868; --hcomp: #ff9a54; --block: #f5aa2e; --period: #a96aff; --fmla: #7aa2ff; --warn: #f5aa2e; --danger: #ff5d5d; }
+  [data-theme="light"] body, body.light { --ot: #059669; --vac: #0284c7; --sick: #dc2626; --fsick: #db2777; --sfun: #e0447c; --sfun2: #9333ea; --pl: #0d9488; --comp: #16a34a; --hcomp: #ea580c; --block: #d97706; --period: #9333ea; --fmla: #2563eb; }
 
   /* KHub plumbing: named tokens for every raw value used in component rules. Exact current values, zero visual change. */
   :root {
     --page-bg: #050607;
-    --on-ot: #07120d; --on-vac: #06111a; --on-sick: #1d0505; --on-fsick: #1d0614; --on-pl: #061614; --on-hcomp: #1a0c04; --on-block: #1a1003; --on-fmla: #07101f;
-    --vac-bg: rgba(58, 85, 112, 0.78); --fsick-bg: rgba(92, 42, 72, 0.78); --pl-bg: rgba(39, 78, 74, 0.78); --comp-bg: rgba(89, 43, 45, 0.78); --hcomp-bg: rgba(88, 55, 34, 0.78); --fmla-bg: rgba(47, 58, 102, 0.78);
+    --on-ot: #07120d; --on-vac: #06111a; --on-sick: #1d0505; --on-fsick: #1d0614; --on-sfun: #1d0710; --on-sfun2: #14061d; --on-pl: #061614; --on-hcomp: #1a0c04; --on-block: #1a1003; --on-fmla: #07101f;
+    --vac-bg: rgba(58, 85, 112, 0.78); --fsick-bg: rgba(92, 42, 72, 0.78); --sfun-bg: rgba(92, 44, 62, 0.78); --sfun2-bg: rgba(74, 46, 92, 0.78); --pl-bg: rgba(39, 78, 74, 0.78); --comp-bg: rgba(89, 43, 45, 0.78); --hcomp-bg: rgba(88, 55, 34, 0.78); --fmla-bg: rgba(47, 58, 102, 0.78);
     --alert-warn-deep: #141006; --alert-danger-deep: #18080a; --alert-info-deep: #16101f;
     --progress-fill-end: #34d399;
     --btn-primary-bg: #94b4ee; --btn-primary-ink: #111827;
@@ -129,6 +129,8 @@
   .bank-vac .bank-num { color: var(--vac); }
   .bank-sick .bank-num { color: var(--sick); }
   .bank-fsick .bank-num { color: var(--fsick); }
+  .bank-sfun .bank-num { color: var(--sfun); }
+  .bank-sfun2 .bank-num { color: var(--sfun2); }
   .bank-pl .bank-num { color: var(--pl); }
   .bank-fmla .bank-num { color: var(--fmla); }
   .bank-occ .bank-num { color: var(--period); }
@@ -166,6 +168,8 @@
   .type-chip.active.vac { background: var(--vac); border-color: var(--vac); color: var(--on-vac); }
   .type-chip.active.sick { background: var(--sick); border-color: var(--sick); color: var(--on-sick); }
   .type-chip.active.fsick { background: var(--fsick); border-color: var(--fsick); color: var(--on-fsick); }
+  .type-chip.active.sfun { background: var(--sfun); border-color: var(--sfun); color: var(--on-sfun); }
+  .type-chip.active.sfun2 { background: var(--sfun2); border-color: var(--sfun2); color: var(--on-sfun2); }
   .type-chip.active.pl { background: var(--pl); border-color: var(--pl); color: var(--on-pl); }
   .type-chip.active.comp { background: var(--comp); border-color: var(--comp); color: var(--on-sick); }
   .type-chip.active.hcomp { background: var(--hcomp); border-color: var(--hcomp); color: var(--on-hcomp); }
@@ -220,6 +224,8 @@
   .tag-vac { background: var(--vac-bg); color: var(--vac); }
   .tag-sick { background: var(--red-bg); color: var(--sick); }
   .tag-fsick { background: var(--fsick-bg); color: var(--fsick); }
+  .tag-sfun { background: var(--sfun-bg); color: var(--sfun); }
+  .tag-sfun2 { background: var(--sfun2-bg); color: var(--sfun2); }
   .tag-pl { background: var(--pl-bg); color: var(--pl); }
   .tag-comp { background: var(--comp-bg); color: var(--comp); }
   .tag-hcomp { background: var(--hcomp-bg); color: var(--hcomp); }
@@ -254,6 +260,10 @@
   .cal-cell.sick .cal-cell-sub { color: var(--sick); }
   .cal-cell.fsick { background: var(--fsick-bg); border-color: color-mix(in srgb, var(--fsick) 55%, transparent); }
   .cal-cell.fsick .cal-cell-sub { color: var(--fsick); }
+  .cal-cell.sfuneralImmediate { background: var(--sfun-bg); border-color: color-mix(in srgb, var(--sfun) 55%, transparent); }
+  .cal-cell.sfuneralImmediate .cal-cell-sub { color: var(--sfun); }
+  .cal-cell.sfuneralNonImmediate { background: var(--sfun2-bg); border-color: color-mix(in srgb, var(--sfun2) 55%, transparent); }
+  .cal-cell.sfuneralNonImmediate .cal-cell-sub { color: var(--sfun2); }
   .cal-cell.pl { background: var(--pl-bg); border-color: color-mix(in srgb, var(--pl) 55%, transparent); }
   .cal-cell.pl .cal-cell-sub { color: var(--pl); }
   .cal-cell.comp { background: var(--comp-bg); border-color: color-mix(in srgb, var(--comp) 55%, transparent); }

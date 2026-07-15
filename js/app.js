@@ -16,6 +16,8 @@
   var FAMILY_SICK_CAP_DAYS = 10;
   var PL_CAP_DAYS = 3;
   var MAX_CONSEC_WORKDAYS = 5;
+  var FUNERAL_IMMEDIATE_CAP_DAYS = 3;    // working days per death (immediate family)
+  var FUNERAL_NONIMMEDIATE_CAP_DAYS = 3; // working days per calendar year (non-immediate)
 
   var state = {
     theme: 'dark',
@@ -39,6 +41,7 @@
       fmlaStartDate: '',
       fmlaSnapshotHours: 0,
       fmlaPeriods: [],
+      funeralEvents: [],
       userName: 'David'
     },
     meta: { lastBackup: '', lastSaved: '', backupRevision: 0, lastAccrualKey: '' },
@@ -50,6 +53,8 @@
     editHours: '0',
     editFmlaReason: 'self',
     editFmlaCharge: 'vac',
+    editFuneralEvent: '',
+    editFuneralNewOpen: false,
     addMode: 'single',
     addDateStart: '',
     addDateEnd: '',
@@ -57,6 +62,8 @@
     addHours: '0',
     addFmlaReason: 'self',
     addFmlaCharge: 'vac',
+    addFuneralEvent: '',
+    addFuneralNewOpen: false,
     previewMode: 'month',
     previewMonth: new Date(),
     previewPeriod: 0,
@@ -81,6 +88,7 @@
       if (!Array.isArray(state.settings.manualOccasions) || state.settings.manualOccasions.length !== 4) state.settings.manualOccasions = [0,0,0,0];
       if (!Array.isArray(state.settings.manualOccasionNotes) || state.settings.manualOccasionNotes.length !== 4) state.settings.manualOccasionNotes = ['','','',''];
       if (!Array.isArray(state.settings.fmlaPeriods)) state.settings.fmlaPeriods = [];
+      if (!Array.isArray(state.settings.funeralEvents)) state.settings.funeralEvents = [];
       if (state.settings.fmlaStartDate && state.settings.fmlaPeriods.length === 0) {
         state.settings.fmlaPeriods = [{ id: 'fp1', label: 'Period 1', startDate: state.settings.fmlaStartDate, snapshotHours: state.settings.fmlaSnapshotHours || 0 }];
       }
@@ -332,6 +340,8 @@
     vac:   { label: 'VAC', name: 'Vacation', color: 'vac', tag: 'V' },
     sick:  { label: 'SICK', name: 'Sick', color: 'sick', tag: 'S' },
     fsick: { label: 'FS', name: 'Family Sick', color: 'fsick', tag: 'FS' },
+    sfuneralImmediate:    { label: 'FUN-I', name: 'Funeral - Immediate Family', color: 'sfun', tag: 'FI' },
+    sfuneralNonImmediate: { label: 'FUN-N', name: 'Funeral - Non-Immediate', color: 'sfun2', tag: 'FN' },
     pl:    { label: 'PL', name: 'Personal Leave', color: 'pl', tag: 'PL' },
     comp:  { label: 'COMP', name: 'Regular Comp', color: 'comp', tag: 'C' },
     hcomp: { label: 'H-COMP', name: 'Holiday Comp', color: 'hcomp', tag: 'HC' },
@@ -339,6 +349,55 @@
     fmla:  { label: 'FMLA', name: 'FMLA Leave', color: 'fmla', tag: 'FMLA' }
   };
   var WD = function() { return state.settings.workdayHours || 7.5; };
+
+  // === Sick-leave classification config (single source of truth) ===
+  // All sick-family rules live here. Occurrence counting, sick-bank deduction,
+  // stretch bridging, caps and labels read from this object -- do not scatter
+  // type === 'sick' checks elsewhere.
+  var SICK_LEAVE_RULES = {
+    sick: {
+      label: 'Regular Sick', shortLabel: 'Sick', internalType: 'sick',
+      usesSickBank: true, countsOccurrence: true, canBridgeSickStretch: true, countsConsecDays: true,
+      annualCapDays: null, capReset: null, perEventCapDays: null,
+      requiresEventId: false, usesFmlaLogic: false, displayColor: 'sick'
+    },
+    fsick: {
+      label: 'Family Sick', shortLabel: 'Fam Sick', internalType: 'fsick',
+      usesSickBank: true, countsOccurrence: false, canBridgeSickStretch: true, countsConsecDays: true,
+      annualCapDays: 10, capReset: 'jan1', perEventCapDays: null,
+      requiresEventId: false, usesFmlaLogic: false, displayColor: 'fsick'
+    },
+    sfuneralImmediate: {
+      label: 'Funeral - Immediate Family', shortLabel: 'Funeral Imm', internalType: 'sfuneralImmediate',
+      usesSickBank: true, countsOccurrence: false, canBridgeSickStretch: true, countsConsecDays: false,
+      annualCapDays: null, capReset: null, perEventCapDays: 3,
+      requiresEventId: true, usesFmlaLogic: false, displayColor: 'sfun'
+    },
+    sfuneralNonImmediate: {
+      label: 'Funeral - Non-Immediate', shortLabel: 'Funeral Non-Imm', internalType: 'sfuneralNonImmediate',
+      usesSickBank: true, countsOccurrence: false, canBridgeSickStretch: true, countsConsecDays: false,
+      annualCapDays: 3, capReset: 'jan1', perEventCapDays: null,
+      requiresEventId: false, usesFmlaLogic: false, displayColor: 'sfun2'
+    },
+    fmla: {
+      label: 'FMLA Leave', shortLabel: 'FMLA', internalType: 'fmla',
+      usesSickBank: false, countsOccurrence: false, canBridgeSickStretch: false, countsConsecDays: false,
+      annualCapDays: null, capReset: null, perEventCapDays: null,
+      requiresEventId: false, usesFmlaLogic: true, displayColor: 'fmla'
+    }
+  };
+  // Bridging semantics (conservative, per contract review 2026-07-15):
+  // - canBridgeSickStretch: the day keeps a sick stretch CONNECTED (an intervening
+  //   funeral day must not split one illness into two occurrences).
+  // - countsConsecDays: the day adds to the consecutive-day count used for the
+  //   5-day doctor-note warning. Funeral days bridge but do NOT add days.
+  // - Only a stretch containing Regular Sick ever counts as an occurrence.
+  function sickLeaveRule(type) { return SICK_LEAVE_RULES[type] || null; }
+  function isSickLeaveType(type) { return !!SICK_LEAVE_RULES[type]; }
+  function usesSickBank(type) { var r = sickLeaveRule(type); return !!(r && r.usesSickBank); }
+  function countsAsOccurrence(type) { var r = sickLeaveRule(type); return !!(r && r.countsOccurrence); }
+  function canBridgeSickStretch(type) { var r = sickLeaveRule(type); return !!(r && r.canBridgeSickStretch); }
+  function countsSickConsecDays(type) { var r = sickLeaveRule(type); return !!(r && r.countsConsecDays); }
 
   // === Date filter helpers ===
   function inWorkYear(d, ref) { return d >= getWorkYearStart(ref) && d <= getWorkYearEnd(ref); }
@@ -398,8 +457,9 @@
     var asOf = getBalanceAsOfDate();
     var sickUsed = getBankUsageSince('sick', asOf);
     var fsickUsed = getBankUsageSince('fsick', asOf);
+    var funeralUsed = getBankUsageSince('sfuneralImmediate', asOf) + getBankUsageSince('sfuneralNonImmediate', asOf);
     var fmlaSick = calcSickChargeFromFmla(asOf);
-    return (parseFloat(state.settings.sickRemaining) || 0) + calcAccruedMonthly(state.settings.sickMonthlyAccrual) - sickUsed - fsickUsed - fmlaSick - (extraSubtract || 0);
+    return (parseFloat(state.settings.sickRemaining) || 0) + calcAccruedMonthly(state.settings.sickMonthlyAccrual) - sickUsed - fsickUsed - funeralUsed - fmlaSick - (extraSubtract || 0);
   }
   function calcCompLeft(extraSubtract) {
     var asOf = getBalanceAsOfDate();
@@ -491,11 +551,45 @@
     var days = hours / WD();
     return state.settings.plUsedDays + days + (extraAdd || 0);
   }
+  // === Funeral leave helpers ===
+  function getFuneralEvents() { return Array.isArray(state.settings.funeralEvents) ? state.settings.funeralEvents : []; }
+  function getFuneralEventById(id) {
+    var evs = getFuneralEvents();
+    for (var i = 0; i < evs.length; i++) if (evs[i].id === id) return evs[i];
+    return null;
+  }
+  // Days of immediate-family funeral leave used for one event (one death). Not year-bound.
+  function calcFuneralImmediateDaysUsed(eventId, extraAdd) {
+    var hours = 0;
+    for (var k in state.data) {
+      var dayEntries = getDateEntries(k);
+      for (var di = 0; di < dayEntries.length; di++) {
+        var e = dayEntries[di];
+        if (!e || e.type !== 'sfuneralImmediate') continue;
+        if (eventId && e.eventId !== eventId) continue;
+        if (typeof e.hours === 'number') hours += e.hours;
+      }
+    }
+    return hours / WD() + (extraAdd || 0);
+  }
+  // Days of non-immediate funeral leave used this calendar year. Resets January 1.
+  function calcFuneralNonImmediateDaysUsed(extraAdd) {
+    var today = new Date();
+    var entries = getEntriesIn('sfuneralNonImmediate', function(d) { return inCalYear(d, today); });
+    return sumHours(entries) / WD() + (extraAdd || 0);
+  }
   function getFmlaContext(isPanel) {
     return {
       reason: isPanel ? state.editFmlaReason : state.addFmlaReason,
       charge: isPanel ? state.editFmlaCharge : state.addFmlaCharge
     };
+  }
+  // Generic context for checkEntry: FMLA gets reason/charge, immediate funeral gets its eventId.
+  function getEntryCtx(isPanel) {
+    var t = isPanel ? state.editType : state.addType;
+    if (t === 'fmla') return getFmlaContext(isPanel);
+    if (t === 'sfuneralImmediate') return { eventId: isPanel ? state.editFuneralEvent : state.addFuneralEvent };
+    return null;
   }
   function calcFmlaAllocation(hours, ctx) {
     var reason = (ctx && ctx.reason) || 'self';
@@ -537,20 +631,24 @@
     return parts.join(' · ');
   }
 
-  // === Stretches (consecutive workdays of sick/fsick ONLY, no breaks) ===
+  // === Stretches (consecutive workdays of the sick-leave family, no breaks) ===
+  // Continuity (canBridgeSickStretch) and day-counting (countsConsecDays) are
+  // separate: sick and fsick both connect AND count days (unchanged legacy
+  // behavior); funeral days connect the stretch so one illness is not split
+  // into two occurrences, but add zero days to the doctor-note count.
   function getStretches(filterFn) {
-    // Build a map of dates that have any sick or fsick entry
     var dateMap = {};
     for (var k in state.data) {
       var dayEntries = getDateEntries(k);
-      var hasSick = false, hasAny = false;
+      var hasSick = false, hasAny = false, countsDay = false;
       for (var ei = 0; ei < dayEntries.length; ei++) {
-        if (dayEntries[ei].type === 'sick') { hasSick = true; hasAny = true; }
-        else if (dayEntries[ei].type === 'fsick') { hasAny = true; }
+        var stType = dayEntries[ei].type;
+        if (stType === 'sick') { hasSick = true; hasAny = true; countsDay = true; }
+        else if (canBridgeSickStretch(stType)) { hasAny = true; if (countsSickConsecDays(stType)) countsDay = true; }
       }
       if (hasAny) {
         var d = parseDateKey(k);
-        if (!filterFn || filterFn(d)) dateMap[k] = { key: k, date: d, hasSick: hasSick };
+        if (!filterFn || filterFn(d)) dateMap[k] = { key: k, date: d, hasSick: hasSick, countsDay: countsDay };
       }
     }
     var keys = Object.keys(dateMap).sort();
@@ -558,15 +656,16 @@
     for (var i = 0; i < keys.length; i++) {
       var info = dateMap[keys[i]];
       if (!current) {
-        current = { start: info.date, end: info.date, days: 1, hasSick: info.hasSick };
+        current = { start: info.date, end: info.date, days: info.countsDay ? 1 : 0, hasSick: info.hasSick };
       } else {
         var next = nextWorkday(current.end);
         if (formatDateKey(next) === info.key) {
-          current.end = info.date; current.days++;
+          current.end = info.date;
+          if (info.countsDay) current.days++;
           if (info.hasSick) current.hasSick = true;
         } else {
           stretches.push(current);
-          current = { start: info.date, end: info.date, days: 1, hasSick: info.hasSick };
+          current = { start: info.date, end: info.date, days: info.countsDay ? 1 : 0, hasSick: info.hasSick };
         }
       }
     }
@@ -636,6 +735,27 @@
       else info.push('After save: ' + (PL_CAP_DAYS - newPlDays).toFixed(2) + ' PL days left.');
     }
 
+    if (type === 'sfuneralImmediate') {
+      var newSickLeftFi = calcSickLeft(hours);
+      if (newSickLeftFi < 0) blocks.push('Funeral leave draws from sick bank. Have ' + calcSickLeft(0).toFixed(2) + ' sick hrs, need ' + hours + '.');
+      var fiEventId = fmlaCtx && fmlaCtx.eventId;
+      if (!fiEventId) {
+        blocks.push('Select or add a funeral event first so the 3-day-per-death limit can be tracked.');
+      } else {
+        var fiDays = calcFuneralImmediateDaysUsed(fiEventId, hours / WD());
+        if (fiDays > FUNERAL_IMMEDIATE_CAP_DAYS + 1e-9) blocks.push('Exceeds ' + FUNERAL_IMMEDIATE_CAP_DAYS + ' working days for this funeral event. ' + Math.max(0, FUNERAL_IMMEDIATE_CAP_DAYS - calcFuneralImmediateDaysUsed(fiEventId, 0)).toFixed(2) + ' days left for this event.');
+        else info.push('After save: ' + Math.max(0, FUNERAL_IMMEDIATE_CAP_DAYS - fiDays).toFixed(2) + ' of ' + FUNERAL_IMMEDIATE_CAP_DAYS + ' days left for this funeral event.');
+      }
+    }
+
+    if (type === 'sfuneralNonImmediate') {
+      var newSickLeftFn = calcSickLeft(hours);
+      if (newSickLeftFn < 0) blocks.push('Funeral leave draws from sick bank. Have ' + calcSickLeft(0).toFixed(2) + ' sick hrs, need ' + hours + '.');
+      var fnDays = calcFuneralNonImmediateDaysUsed(hours / WD());
+      if (fnDays > FUNERAL_NONIMMEDIATE_CAP_DAYS + 1e-9) blocks.push('Exceeds ' + FUNERAL_NONIMMEDIATE_CAP_DAYS + ' working days of non-immediate funeral leave this calendar year. ' + Math.max(0, FUNERAL_NONIMMEDIATE_CAP_DAYS - calcFuneralNonImmediateDaysUsed(0)).toFixed(2) + ' days left. Resets January 1.');
+      else info.push('After save: ' + Math.max(0, FUNERAL_NONIMMEDIATE_CAP_DAYS - fnDays).toFixed(2) + ' of ' + FUNERAL_NONIMMEDIATE_CAP_DAYS + ' non-immediate funeral days left this calendar year.');
+    }
+
     if (type === 'comp') {
       var newCompLeft = calcCompLeft(hours);
       if (newCompLeft < 0) blocks.push('Not enough regular comp time. Have ' + calcCompLeft(0).toFixed(2) + ' hrs, need ' + hours + '.');
@@ -683,7 +803,7 @@
     }
 
     // Consecutive workdays check (sick/fsick chains)
-    if (dateStr && (type === 'sick' || type === 'fsick')) {
+    if (dateStr && countsSickConsecDays(type)) {
       var consecLen = projectConsecutiveLength(dateStr, type);
       if (consecLen > MAX_CONSEC_WORKDAYS) warns.push('This makes ' + consecLen + ' consecutive workdays of sick/family sick. Limit before doctor note: ' + MAX_CONSEC_WORKDAYS + '.');
     }
@@ -818,14 +938,83 @@
 
   // === Type chips ===
   function renderTypeChips(active, includeBlock, dataAction, includeFmla) {
-    var types = ['ot', 'vac', 'sick', 'fsick', 'pl', 'comp', 'hcomp'];
-    if (includeFmla && state.settings.fmlaEnabled) types.push('fmla');
+    // Sick, Family Sick, funeral and FMLA all live behind the single SICK LEAVE parent chip.
+    var types = ['ot', 'vac', 'sickleave', 'pl', 'comp', 'hcomp'];
     if (includeBlock) types.push('block');
     var html = '<div class="type-chips" style="grid-template-columns:repeat(' + types.length + ',1fr)">';
     for (var i = 0; i < types.length; i++) {
       var t = types[i];
-      var cls = 'type-chip ' + TYPES[t].color + (active === t ? ' active' : '');
-      html += '<button class="' + cls + '" data-action="' + dataAction + '" data-type="' + t + '">' + TYPES[t].label + '</button>';
+      if (t === 'sickleave') {
+        var slActive = isSickLeaveType(active);
+        html += '<button class="type-chip sick' + (slActive ? ' active' : '') + '" data-action="' + dataAction + '" data-type="sickleave">SICK LEAVE</button>';
+      } else {
+        var cls = 'type-chip ' + TYPES[t].color + (active === t ? ' active' : '');
+        html += '<button class="' + cls + '" data-action="' + dataAction + '" data-type="' + t + '">' + TYPES[t].label + '</button>';
+      }
+    }
+    html += '</div>';
+    if (isSickLeaveType(active)) html += renderSickLeaveMenu(active, dataAction === 'add-type' ? 'add' : 'edit');
+    return html;
+  }
+
+  // === Sick Leave subtype selector (shared by Add Entry card and calendar edit panel) ===
+  function renderSickLeaveMenu(activeType, prefix) {
+    var reason = prefix === 'edit' ? state.editFmlaReason : state.addFmlaReason;
+    var subs = [
+      { id: 'sick', label: 'Regular Sick' },
+      { id: 'fsick', label: 'Family Sick' },
+      { id: 'sfuneralImmediate', label: 'Funeral - Immediate' },
+      { id: 'sfuneralNonImmediate', label: 'Funeral - Non-Immediate' }
+    ];
+    if (state.settings.fmlaEnabled) {
+      subs.push({ id: 'fmla-self', label: 'FMLA - Self' });
+      subs.push({ id: 'fmla-spouse', label: 'FMLA - Family/Caregiver' });
+    }
+    var activeSub = activeType === 'fmla' ? (reason === 'spouse' ? 'fmla-spouse' : 'fmla-self') : activeType;
+    var selLabel = '';
+    for (var si = 0; si < subs.length; si++) if (subs[si].id === activeSub) selLabel = subs[si].label;
+    var html = '<div class="sick-submenu" style="background:var(--input-bg);border:1px solid var(--input-border);border-radius:12px;padding:10px;margin:-4px 0 10px">';
+    html += '<div class="label mb-2" style="font-size:10px">Sick Leave Type</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+    for (var i = 0; i < subs.length; i++) {
+      var isAct = subs[i].id === activeSub;
+      html += '<button class="toggle-btn' + (isAct ? ' active' : '') + '" data-action="sick-sub" data-prefix="' + prefix + '" data-sub="' + subs[i].id + '" style="font-size:12px;padding:9px 4px' + (isAct ? ';background:var(--sick);border-color:var(--sick);color:white' : '') + '">' + subs[i].label + '</button>';
+    }
+    html += '</div>';
+    html += '<div class="text-xs muted" style="margin-top:8px">Selected: <strong>' + selLabel + '</strong></div>';
+    if (activeType === 'sfuneralImmediate') html += renderFuneralControls(prefix);
+    if (activeType === 'sfuneralNonImmediate') {
+      html += '<div class="text-xs muted" style="margin-top:4px">' + Math.max(0, FUNERAL_NONIMMEDIATE_CAP_DAYS - calcFuneralNonImmediateDaysUsed(0)).toFixed(2) + ' of ' + FUNERAL_NONIMMEDIATE_CAP_DAYS + ' days left this calendar year. Resets January 1.</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // Immediate-family funeral: pick or create the event (one death = one event = its own 3-day allowance)
+  function renderFuneralControls(prefix) {
+    var selId = prefix === 'edit' ? state.editFuneralEvent : state.addFuneralEvent;
+    var evs = getFuneralEvents();
+    var html = '<div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">';
+    html += '<div class="text-xs muted mb-1">Funeral event - ' + FUNERAL_IMMEDIATE_CAP_DAYS + ' working days per death. Short label only (relationship or name).</div>';
+    if (evs.length > 0) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">';
+      for (var i = 0; i < evs.length; i++) {
+        var ev = evs[i];
+        var used = calcFuneralImmediateDaysUsed(ev.id, 0);
+        var isSel = selId === ev.id;
+        html += '<button class="toggle-btn' + (isSel ? ' active' : '') + '" data-action="funeral-event" data-prefix="' + prefix + '" data-id="' + ev.id + '" style="font-size:12px;padding:7px 10px' + (isSel ? ';background:var(--sfun);border-color:var(--sfun);color:white' : '') + '">' + escapeHtml(ev.label || 'Event') + ' &middot; ' + used.toFixed(1) + 'd used</button>';
+      }
+      html += '</div>';
+    }
+    var newOpen = prefix === 'edit' ? state.editFuneralNewOpen : state.addFuneralNewOpen;
+    if (newOpen) {
+      html += '<div style="display:flex;gap:6px"><input class="setting-input" id="funeralNewName-' + prefix + '" placeholder="e.g. Grandmother" style="flex:1"><button class="small-btn" data-action="funeral-new-save" data-prefix="' + prefix + '" style="padding:8px 14px">Add</button></div>';
+    } else {
+      html += '<button class="small-btn" data-action="funeral-new-open" data-prefix="' + prefix + '" style="width:100%;padding:8px">+ New Funeral Event</button>';
+    }
+    if (selId) {
+      var selEv = getFuneralEventById(selId);
+      if (selEv) html += '<div class="text-xs muted" style="margin-top:6px">' + escapeHtml(selEv.label || 'Event') + ': ' + Math.max(0, FUNERAL_IMMEDIATE_CAP_DAYS - calcFuneralImmediateDaysUsed(selId, 0)).toFixed(2) + ' of ' + FUNERAL_IMMEDIATE_CAP_DAYS + ' days left for this event.</div>';
     }
     html += '</div>';
     return html;
@@ -857,6 +1046,8 @@
     if (fsickLeft <= 0 && state.settings.sickRemaining > 0) alerts.push({ type: 'danger', title: 'Family sick exhausted', body: '10-day cap reached. Resets January 1.' });
     if (plLeft <= 1 && plLeft > 0) alerts.push({ type: 'warn', title: 'PL low', body: plLeft.toFixed(1) + ' of 3 days remaining this calendar year.' });
     if (plLeft <= 0) alerts.push({ type: 'warn', title: 'PL exhausted', body: '3-day cap reached. Resets January 1.' });
+    var funNonUsedAl = calcFuneralNonImmediateDaysUsed(0);
+    if (funNonUsedAl > 0 && funNonUsedAl >= FUNERAL_NONIMMEDIATE_CAP_DAYS) alerts.push({ type: 'warn', title: 'Non-immediate funeral leave exhausted', body: '3-day calendar-year cap reached. Resets January 1.' });
 
     if (currQ >= 0 && currQ < 4 && qCounts[currQ] >= 1) {
       alerts.push({ type: 'warn', title: 'Q' + (currQ + 1) + ' occasion used', body: 'You used your sick occasion for ' + getQuarterName(currQ) + '. Next available ' + getQuarterName((currQ + 1) % 4) + '.' });
@@ -904,11 +1095,7 @@
 
   function renderFmlaControls(prefix, reason, charge) {
     var html = '<div class="projection ok" style="margin-top:6px">';
-    html += '<div class="label mb-2">FMLA For</div>';
-    html += '<div class="toggle-row" style="margin-bottom:8px">';
-    html += '<button class="toggle-btn ' + (reason !== 'spouse' ? 'active' : '') + '" data-action="fmla-reason" data-prefix="' + prefix + '" data-val="self">Self</button>';
-    html += '<button class="toggle-btn ' + (reason === 'spouse' ? 'active' : '') + '" data-action="fmla-reason" data-prefix="' + prefix + '" data-val="spouse">Wife/Spouse</button>';
-    html += '</div>';
+    html += '<div class="label mb-2">FMLA - ' + (reason === 'spouse' ? 'Family/Caregiver' : 'Self') + '</div>';
     if (reason === 'spouse') {
       html += '<div class="label mb-2">Paid Charge</div>';
       html += '<div class="toggle-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">';
@@ -1225,7 +1412,7 @@
     }
     var totalHours = hours * dayCount;
 
-    var result = checkEntry(state.addType, totalHours, state.addDateStart, state.addType === 'fmla' ? getFmlaContext(false) : null);
+    var result = checkEntry(state.addType, totalHours, state.addDateStart, getEntryCtx(false));
     var cls = result.blocks.length ? 'danger' : result.warns.length ? 'warn' : 'ok';
     var html = '<div id="addProjection" class="projection ' + cls + '">';
     for (var i = 0; i < result.blocks.length; i++) html += '<span class="projection-line"><strong>BLOCKED:</strong> ' + escapeHtml(result.blocks[i]) + '</span>';
@@ -1269,7 +1456,7 @@
     var hrs = parseFloat(state.editHours) || 0;
     if (hrs <= 0) return '<div id="editProjection"></div>';
     var key = formatDateKey(state.selectedDate);
-    var r = checkEntry(state.editType, hrs, key, state.editType === 'fmla' ? getFmlaContext(true) : null);
+    var r = checkEntry(state.editType, hrs, key, getEntryCtx(true));
     var cls = r.blocks.length ? 'danger' : r.warns.length ? 'warn' : 'ok';
     var html = '<div id="editProjection" class="projection ' + cls + '">';
     for (var i = 0; i < r.blocks.length; i++) html += '<span class="projection-line"><strong>BLOCKED:</strong> ' + escapeHtml(r.blocks[i]) + '</span>';
@@ -1325,6 +1512,10 @@
     html += bankCard('Family Sick', 'fsick', fsickD.value, fsickD.unit, fsickD.sub, fsickLeft <= 0, fsickLeft <= 2, fsickD.maxVal, fsickD.bigOverride);
     var plD = bankDayDisplay(plLeft, PL_CAP_DAYS, '3 days');
     html += bankCard('PL', 'pl', plD.value, plD.unit, plD.sub, plLeft <= 0, plLeft <= 1, plD.maxVal, plD.bigOverride);
+    var funNonUsed = calcFuneralNonImmediateDaysUsed(0);
+    var funNonLeft = FUNERAL_NONIMMEDIATE_CAP_DAYS - funNonUsed;
+    var fnD = bankDayDisplay(funNonLeft, FUNERAL_NONIMMEDIATE_CAP_DAYS, '3 days');
+    html += bankCard('Funeral (Non-Imm)', 'sfun2', fnD.value, fnD.unit, fnD.sub, funNonLeft <= 0, funNonLeft <= 1, fnD.maxVal, fnD.bigOverride);
     if (state.settings.fmlaEnabled) {
       var fmlaPeriodsList = getFmlaPeriods();
       var fmlaTotal = getFmlaTotalHours();
@@ -1363,6 +1554,24 @@
       html += '<div class="' + cls + '"><div class="q-name">' + getQuarterName(q) + '</div><div class="q-count">' + qCounts[q] + '</div><div class="q-sub">of ' + allowed + '</div></div>';
     }
     html += '</div></div>';
+
+    // Funeral leave (immediate family) - per-event usage
+    var funEvents = getFuneralEvents();
+    if (funEvents.length > 0) {
+      html += '<div class="card card-mb">';
+      html += '<div class="label mb-2">Funeral Leave - Immediate Family</div>';
+      for (var fei = 0; fei < funEvents.length; fei++) {
+        var fev = funEvents[fei];
+        var fevUsed = calcFuneralImmediateDaysUsed(fev.id, 0);
+        var fevColor = fevUsed >= FUNERAL_IMMEDIATE_CAP_DAYS ? 'var(--danger)' : 'var(--sfun)';
+        html += '<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)">';
+        html += '<div class="text-sm">' + escapeHtml(fev.label || 'Event') + '</div>';
+        html += '<div class="num" style="font-size:13px;font-weight:700;color:' + fevColor + '">' + fevUsed.toFixed(1) + ' of ' + FUNERAL_IMMEDIATE_CAP_DAYS + ' days</div>';
+        html += '</div>';
+      }
+      html += '<div class="text-xs muted mt-1">' + FUNERAL_IMMEDIATE_CAP_DAYS + ' working days per death. Draws from sick bank. No occurrence.</div>';
+      html += '</div>';
+    }
 
     // Month preview
     html += renderMonthPreview();
@@ -1554,6 +1763,8 @@
     html+=summaryChip('Holiday Comp',hcompLeft.toFixed(1)+' hrs',hcompLeft<=0?'var(--danger)':hcompLeft<WD()?'var(--warn)':'var(--hcomp)');
     html+=summaryChip('Fam Sick',chipDayHr(fsickLeft),fsickLeft<=0?'var(--danger)':fsickLeft<=2?'var(--warn)':'var(--fsick)');
     html+=summaryChip('PL',chipDayHr(plLeft),plLeft<=0?'var(--danger)':plLeft<=1?'var(--warn)':'var(--pl)');
+    var funNonUsedPill=calcFuneralNonImmediateDaysUsed(0);
+    if(funNonUsedPill>0){var funNonLeftPill=FUNERAL_NONIMMEDIATE_CAP_DAYS-funNonUsedPill;html+=summaryChip('Funeral NI',chipDayHr(funNonLeftPill),funNonLeftPill<=0?'var(--danger)':funNonLeftPill<=1?'var(--warn)':'var(--sfun2)');}
     html+='</div>';
     return html;
   }
@@ -1646,6 +1857,8 @@
       { id: 'vac', label: 'Vacation' },
       { id: 'sick', label: 'Sick' },
       { id: 'fsick', label: 'Family Sick' },
+      { id: 'sfuneralImmediate', label: 'Funeral Imm' },
+      { id: 'sfuneralNonImmediate', label: 'Funeral Non-Imm' },
       { id: 'pl', label: 'PL' },
       { id: 'comp', label: 'Comp' },
       { id: 'hcomp', label: 'Holiday Comp' },
@@ -1691,6 +1904,9 @@
             logTagHtml = '<span class="preview-tag" style="background:' + logPColor + '20;color:' + logPColor + '">FMLA P' + (logPIdx+1) + '</span>';
             logValColor = logPColor;
           }
+        }
+        if (en.entry.type === 'sfuneralImmediate' && en.entry.eventLabel) {
+          logSubLine = escapeHtml(en.entry.eventLabel) + ' &middot; ' + logSubLine;
         }
         html += '<div><div class="log-date">' + dateStr + '</div><div class="log-period">' + logSubLine + '</div></div>';
         html += '<div class="log-right">' + logTagHtml + '<span class="log-value" style="color:' + logValColor + '">' + valStr + '</span></div>';
@@ -1879,7 +2095,8 @@
           html += '<span style="flex:1;font-size:13px;font-weight:600">' + formatFmlaDetail(de) + '</span>';
           html += '<button class="small-btn" data-action="edit-entry-time" data-entry-type="' + de.type + '" title="Edit hours">⏱</button>';
         } else {
-          html += '<span style="flex:1;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums">' + fmtHM(de.hours) + '</span>';
+          var rowExtra = (de.type === 'sfuneralImmediate' && de.eventLabel) ? ' <span style="font-size:11px;font-weight:500;color:var(--muted)">' + escapeHtml(de.eventLabel) + '</span>' : '';
+          html += '<span style="flex:1;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums">' + fmtHM(de.hours) + rowExtra + '</span>';
           html += '<button class="small-btn" data-action="edit-entry-time" data-entry-type="' + de.type + '" title="Edit hours">⏱</button>';
         }
         html += '<button class="small-btn" style="color:var(--danger)" data-action="delete-entry" data-entry-type="' + de.type + '">' + icons.trash + '</button>';
@@ -1969,8 +2186,11 @@
     else if (action === 'close-panel') { state.selectedDate = null; renderPanel(); }
     else if (action === 'edit-type') {
       haptic('light');
-      state.editType = el.getAttribute('data-type');
+      var etNew = el.getAttribute('data-type');
+      if (etNew === 'sickleave') etNew = isSickLeaveType(state.editType) ? state.editType : 'sick';
+      state.editType = etNew;
       state.editHours = '0';
+      state.editFuneralNewOpen = false;
       if (state.editType === 'fmla' && !state.editFmlaReason) { state.editFmlaReason = 'self'; state.editFmlaCharge = 'vac'; }
       renderPanel(); setTimeout(function() { initAllPickers(); bindPanelDateInput(); }, 0);
     }
@@ -2016,11 +2236,62 @@
     }
     else if (action === 'add-type') {
       haptic('light');
-      state.addType = el.getAttribute('data-type');
+      var atNew = el.getAttribute('data-type');
+      if (atNew === 'sickleave') atNew = isSickLeaveType(state.addType) ? state.addType : 'sick';
+      state.addType = atNew;
       state.addHours = '0';
+      state.addFuneralNewOpen = false;
       if (state.addType === 'fmla' && !state.addFmlaReason) { state.addFmlaReason = 'self'; state.addFmlaCharge = 'vac'; }
       var atCard = document.getElementById('addEntryCard');
       if (atCard) { atCard.innerHTML = renderAddEntryCard(); setTimeout(initAllPickers, 0); }
+    }
+    else if (action === 'sick-sub') {
+      haptic('light');
+      var ssPrefix = el.getAttribute('data-prefix');
+      var ssSub = el.getAttribute('data-sub');
+      var ssType = ssSub, ssReason = null;
+      if (ssSub === 'fmla-self') { ssType = 'fmla'; ssReason = 'self'; }
+      else if (ssSub === 'fmla-spouse') { ssType = 'fmla'; ssReason = 'spouse'; }
+      if (ssPrefix === 'edit') {
+        state.editType = ssType;
+        state.editHours = '0';
+        state.editFuneralNewOpen = false;
+        if (ssReason) { state.editFmlaReason = ssReason; if (ssReason !== 'spouse') state.editFmlaCharge = 'vac'; }
+        renderPanel(); setTimeout(function() { initAllPickers(); bindPanelDateInput(); }, 0);
+      } else {
+        state.addType = ssType;
+        state.addHours = '0';
+        state.addFuneralNewOpen = false;
+        if (ssReason) { state.addFmlaReason = ssReason; if (ssReason !== 'spouse') state.addFmlaCharge = 'vac'; }
+        var ssCard = document.getElementById('addEntryCard');
+        if (ssCard) { ssCard.innerHTML = renderAddEntryCard(); setTimeout(initAllPickers, 0); }
+      }
+    }
+    else if (action === 'funeral-event') {
+      haptic('light');
+      var fePrefix = el.getAttribute('data-prefix');
+      var feId = el.getAttribute('data-id');
+      if (fePrefix === 'edit') { state.editFuneralEvent = feId; renderPanel(); setTimeout(function() { initAllPickers(); bindPanelDateInput(); }, 0); }
+      else { state.addFuneralEvent = feId; var feCard = document.getElementById('addEntryCard'); if (feCard) { feCard.innerHTML = renderAddEntryCard(); setTimeout(initAllPickers, 0); } }
+    }
+    else if (action === 'funeral-new-open') {
+      haptic('light');
+      var fnoPrefix = el.getAttribute('data-prefix');
+      if (fnoPrefix === 'edit') { state.editFuneralNewOpen = true; renderPanel(); setTimeout(function() { initAllPickers(); bindPanelDateInput(); }, 0); }
+      else { state.addFuneralNewOpen = true; var fnoCard = document.getElementById('addEntryCard'); if (fnoCard) { fnoCard.innerHTML = renderAddEntryCard(); setTimeout(initAllPickers, 0); } }
+    }
+    else if (action === 'funeral-new-save') {
+      haptic('light');
+      var fnsPrefix = el.getAttribute('data-prefix');
+      var fnsInput = document.getElementById('funeralNewName-' + fnsPrefix);
+      var fnsLabel = fnsInput ? (fnsInput.value || '').trim() : '';
+      if (!fnsLabel) { showToast('Enter a short label (relationship or name)', 'error'); return; }
+      if (!Array.isArray(state.settings.funeralEvents)) state.settings.funeralEvents = [];
+      var fnsId = 'fe' + Date.now();
+      state.settings.funeralEvents.push({ id: fnsId, label: fnsLabel });
+      saveSettings();
+      if (fnsPrefix === 'edit') { state.editFuneralEvent = fnsId; state.editFuneralNewOpen = false; renderPanel(); setTimeout(function() { initAllPickers(); bindPanelDateInput(); }, 0); }
+      else { state.addFuneralEvent = fnsId; state.addFuneralNewOpen = false; var fnsCard = document.getElementById('addEntryCard'); if (fnsCard) { fnsCard.innerHTML = renderAddEntryCard(); setTimeout(initAllPickers, 0); } }
     }
     else if (action === 'fmla-reason') {
       haptic('light');
@@ -2240,7 +2511,7 @@
     if (isNaN(h) || h < 0) { showToast('Enter valid hours', 'error'); haptic('heavy'); return; }
     if (h === 0) { showToast('Tap ⏱ to set hours', 'error'); haptic('heavy'); return; }
 
-    var check = checkEntry(state.editType, h, key, state.editType === 'fmla' ? getFmlaContext(true) : null);
+    var check = checkEntry(state.editType, h, key, getEntryCtx(true));
     if (check.blocks.length > 0) { showToast(check.blocks[0], 'error'); haptic('heavy'); return; }
 
     var prevSnap = getDateEntries(key).slice();
@@ -2250,6 +2521,9 @@
       if (state.editType === 'fmla') {
         var alloc = calcFmlaAllocation(h, getFmlaContext(true));
         newEntry = { type: 'fmla', hours: h, fmlaReason: alloc.reason, fmlaCharge: alloc.charge, sickCharge: parseFloat(alloc.sickCharge.toFixed(4)), familySickCharge: parseFloat(alloc.familySickCharge.toFixed(4)), vacCharge: parseFloat(alloc.vacCharge.toFixed(4)), unpaidCharge: parseFloat(alloc.unpaidCharge.toFixed(4)) };
+      } else if (state.editType === 'sfuneralImmediate') {
+        var fevSel = getFuneralEventById(state.editFuneralEvent);
+        newEntry = { type: 'sfuneralImmediate', hours: h, eventId: state.editFuneralEvent, eventLabel: fevSel ? fevSel.label : '' };
       } else {
         newEntry = { type: state.editType, hours: h };
       }
@@ -2301,7 +2575,7 @@
     if (state.addType !== 'block' && state.addType !== 'ot') {
       var dayCount = daysBetween(startD, endD) + 1;
       var totalHours = hoursPerDay * dayCount;
-      var check = checkEntry(state.addType, totalHours, startStr, state.addType === 'fmla' ? getFmlaContext(false) : null);
+      var check = checkEntry(state.addType, totalHours, startStr, getEntryCtx(false));
       if (check.blocks.length > 0) {
         showToast(check.blocks[0], 'error'); haptic('heavy'); return;
       }
@@ -2329,7 +2603,13 @@
         setDateEntries(k, existFmla);
       } else {
         var existOther = getDateEntries(k).filter(function(e) { return e.type !== state.addType; });
-        existOther.push({ type: state.addType, hours: hoursPerDay });
+        var newOtherEntry = { type: state.addType, hours: hoursPerDay };
+        if (state.addType === 'sfuneralImmediate') {
+          var fevAdd = getFuneralEventById(state.addFuneralEvent);
+          newOtherEntry.eventId = state.addFuneralEvent;
+          newOtherEntry.eventLabel = fevAdd ? fevAdd.label : '';
+        }
+        existOther.push(newOtherEntry);
         setDateEntries(k, existOther);
       }
       count++;
@@ -2528,6 +2808,7 @@
             }
             // Migrate old single-period FMLA format to multi-period
             if (!Array.isArray(state.settings.fmlaPeriods)) state.settings.fmlaPeriods = [];
+            if (!Array.isArray(state.settings.funeralEvents)) state.settings.funeralEvents = [];
             if (state.settings.fmlaStartDate && state.settings.fmlaPeriods.length === 0) {
               state.settings.fmlaPeriods = [{ id: 'fp1', label: 'Period 1', startDate: state.settings.fmlaStartDate, snapshotHours: state.settings.fmlaSnapshotHours || 0 }];
             }
@@ -2628,6 +2909,22 @@
         }
       });
     });
+  }
+
+  // === Test hook (inert in production; only populated when window.__OT_TEST__ is set before load) ===
+  if (typeof window !== 'undefined' && window.__OT_TEST__) {
+    window.OTInternals = {
+      state: state, TYPES: TYPES, SICK_LEAVE_RULES: SICK_LEAVE_RULES,
+      checkEntry: checkEntry, getStretches: getStretches, getOccasionsByQuarter: getOccasionsByQuarter,
+      calcSickLeft: calcSickLeft, calcVacationLeft: calcVacationLeft, calcCompLeft: calcCompLeft,
+      calcHolidayCompLeft: calcHolidayCompLeft, calcFamilySickDaysUsed: calcFamilySickDaysUsed,
+      calcPLDaysUsed: calcPLDaysUsed, calcFmlaHoursUsed: calcFmlaHoursUsed, calcFmlaHoursLeft: calcFmlaHoursLeft,
+      calcFuneralImmediateDaysUsed: calcFuneralImmediateDaysUsed, calcFuneralNonImmediateDaysUsed: calcFuneralNonImmediateDaysUsed,
+      getDateEntries: getDateEntries, setDateEntries: setDateEntries, saveData: saveData, saveSettings: saveSettings,
+      countsAsOccurrence: countsAsOccurrence, usesSickBank: usesSickBank, canBridgeSickStretch: canBridgeSickStretch,
+      countsSickConsecDays: countsSickConsecDays,
+      isSickLeaveType: isSickLeaveType, getFuneralEvents: getFuneralEvents, formatDateKey: formatDateKey, WD: WD
+    };
   }
 
   // === Service worker (KHub standard: offline cache + PWA install) ===

@@ -1,0 +1,23 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # The parity tests read main's app.js via `git show main:...`;
+      # make sure a local `main` ref exists on PR checkouts.
+      - name: Ensure local main ref
+        run: git rev-parse --verify main >/dev/null 2>&1 || git fetch origin main:main
+      - name: Run sick-leave test suite
+        run: node tests/sick-leave-tests.js
