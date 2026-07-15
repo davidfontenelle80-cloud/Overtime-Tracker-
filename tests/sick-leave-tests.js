@@ -8,7 +8,7 @@ const NEW_SRC = fs.readFileSync(path.join(REPO, 'js/app.js'), 'utf8');
 const OLD_SRC = injectLegacyHook(execSync('git -C "' + REPO + '" show main:js/app.js', { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }));
 
 // ── Legacy dataset (what a live device would already have) ──
-// Today in sandbox: 2026-07 (work year Sep 2025 - Aug 2026, Q3 = Jun-Aug)
+// Sandbox clock frozen at 2026-07-15 (work year Sep 2025 - Aug 2026, Q3 = Jun-Aug)
 const legacySettings = {
   vacationRemaining: 100, sickRemaining: 200, compRemaining: 40, hcompRemaining: 20,
   vacationMonthlyAccrual: 0, sickMonthlyAccrual: 0,
@@ -156,7 +156,9 @@ console.log('\n== 12c: Occurrence bridging documented behavior ==');
   assert('T12c fsick still bridges sick stretches (1 occurrence, parity with main)',
     a.getOccasionsByQuarter()[3] === 1 && b.getOccasionsByQuarter()[3] === 1,
     JSON.stringify(a.getOccasionsByQuarter()) + ' vs ' + JSON.stringify(b.getOccasionsByQuarter()));
-  // sick Mon, funeral Tue, sick Wed -> TWO stretches (funeral does NOT bridge -- new, documented)
+  // sick Mon, funeral Tue, sick Wed -> ONE stretch, ONE occurrence.
+  // Conservative rule: an intervening funeral day must not split one illness
+  // into two occurrences (funeral bridges but never creates an occurrence).
   const s2 = freshSeed();
   s2['tracker-v3-data'].data = {
     '2026-07-06': { type: 'sick', hours: 7.5 },
@@ -164,7 +166,68 @@ console.log('\n== 12c: Occurrence bridging documented behavior ==');
     '2026-07-08': { type: 'sick', hours: 7.5 }
   };
   const c = makeApp(NEW_SRC, { seedStorage: s2 }).OT;
-  assert('T12d funeral does not bridge: sick-funeral-sick = 2 occurrences', c.getOccasionsByQuarter()[3] === 2, JSON.stringify(c.getOccasionsByQuarter()));
+  assert('T12d sick-funeral-sick stays ONE occurrence (funeral bridges, no split)', c.getOccasionsByQuarter()[3] === 1, JSON.stringify(c.getOccasionsByQuarter()));
+  // Same for non-immediate funeral
+  const s3 = freshSeed();
+  s3['tracker-v3-data'].data = {
+    '2026-07-06': { type: 'sick', hours: 7.5 },
+    '2026-07-07': { type: 'sfuneralNonImmediate', hours: 7.5 },
+    '2026-07-08': { type: 'sick', hours: 7.5 }
+  };
+  const c2 = makeApp(NEW_SRC, { seedStorage: s3 }).OT;
+  assert('T12e sick-nonimm funeral-sick stays ONE occurrence', c2.getOccasionsByQuarter()[3] === 1, JSON.stringify(c2.getOccasionsByQuarter()));
+}
+
+console.log('\n== Bridging edge cases (conservative occurrence rules) ==');
+{
+  // Funeral-only dates create ZERO occurrences
+  const s = freshSeed();
+  s['tracker-v3-data'].data = {
+    '2026-07-06': { type: 'sfuneralImmediate', hours: 7.5, eventId: 'fe1', eventLabel: 'X' },
+    '2026-07-07': { type: 'sfuneralImmediate', hours: 7.5, eventId: 'fe1', eventLabel: 'X' },
+    '2026-07-09': { type: 'sfuneralNonImmediate', hours: 7.5 }
+  };
+  const { OT } = makeApp(NEW_SRC, { seedStorage: s });
+  assert('B1 funeral-only dates -> zero occurrences', OT.getOccasionsByQuarter().every(x => x === 0), JSON.stringify(OT.getOccasionsByQuarter()));
+}
+{
+  // Isolated Regular Sick after an unrelated completed stretch = separate occurrence
+  const s = freshSeed();
+  s['tracker-v3-data'].data = {
+    '2026-07-06': { type: 'sick', hours: 7.5 },
+    '2026-07-07': { type: 'sick', hours: 7.5 },
+    '2026-07-09': { type: 'sick', hours: 7.5 }   // Thu, gap on Wed -> new stretch
+  };
+  const { OT } = makeApp(NEW_SRC, { seedStorage: s });
+  assert('B2 isolated sick after completed stretch = separate occurrence (2 total)', OT.getOccasionsByQuarter()[3] === 2, JSON.stringify(OT.getOccasionsByQuarter()));
+}
+{
+  // Funeral does not independently extend the 5-day doctor-note count:
+  // sick Mon-Tue, funeral Wed, sick Thu-Fri = 4 counted days; adding sick next
+  // Mon makes 5 counted days -> still no consecutive-days warning (>5 warns).
+  const s = freshSeed();
+  s['tracker-v3-data'].data = {
+    '2026-07-20': { type: 'sick', hours: 7.5 },
+    '2026-07-21': { type: 'sick', hours: 7.5 },
+    '2026-07-22': { type: 'sfuneralImmediate', hours: 7.5, eventId: 'fe1', eventLabel: 'X' },
+    '2026-07-23': { type: 'sick', hours: 7.5 },
+    '2026-07-24': { type: 'sick', hours: 7.5 }
+  };
+  const { OT } = makeApp(NEW_SRC, { seedStorage: s });
+  const chk = OT.checkEntry('sick', 7.5, '2026-07-27', null);
+  assert('B3 funeral day adds 0 to doctor-note count (5 counted days, no warning)', !chk.warns.some(w => /consecutive/.test(w)), JSON.stringify(chk.warns));
+  // Control: with sick on the Wed instead, the same add would be 6 days -> warns
+  const s2 = freshSeed();
+  s2['tracker-v3-data'].data = {
+    '2026-07-20': { type: 'sick', hours: 7.5 },
+    '2026-07-21': { type: 'sick', hours: 7.5 },
+    '2026-07-22': { type: 'sick', hours: 7.5 },
+    '2026-07-23': { type: 'sick', hours: 7.5 },
+    '2026-07-24': { type: 'sick', hours: 7.5 }
+  };
+  const OTb = makeApp(NEW_SRC, { seedStorage: s2 }).OT;
+  const chkB = OTb.checkEntry('sick', 7.5, '2026-07-27', null);
+  assert('B4 control: 6 all-sick days does warn', chkB.warns.some(w => /consecutive/.test(w)), JSON.stringify(chkB.warns));
 }
 
 console.log('\n== 15-16: Backup compatibility ==');
@@ -207,7 +270,8 @@ console.log('\n== Config helpers (rules centralized) ==');
   const { OT } = makeApp(NEW_SRC, { seedStorage: freshSeed() });
   assert('C1 countsAsOccurrence: only sick', OT.countsAsOccurrence('sick') && !OT.countsAsOccurrence('fsick') && !OT.countsAsOccurrence('sfuneralImmediate') && !OT.countsAsOccurrence('sfuneralNonImmediate') && !OT.countsAsOccurrence('fmla'));
   assert('C2 usesSickBank: sick, fsick, both funerals; not fmla-direct', OT.usesSickBank('sick') && OT.usesSickBank('fsick') && OT.usesSickBank('sfuneralImmediate') && OT.usesSickBank('sfuneralNonImmediate') && !OT.usesSickBank('fmla'));
-  assert('C3 bridging: sick+fsick yes, funerals+fmla no', OT.canBridgeSickStretch('sick') && OT.canBridgeSickStretch('fsick') && !OT.canBridgeSickStretch('sfuneralImmediate') && !OT.canBridgeSickStretch('sfuneralNonImmediate') && !OT.canBridgeSickStretch('fmla'));
+  assert('C3 bridging (no-split): sick, fsick and both funerals yes; fmla no', OT.canBridgeSickStretch('sick') && OT.canBridgeSickStretch('fsick') && OT.canBridgeSickStretch('sfuneralImmediate') && OT.canBridgeSickStretch('sfuneralNonImmediate') && !OT.canBridgeSickStretch('fmla'));
+  assert('C6 consec-day counting: sick+fsick yes; funerals+fmla no', OT.countsSickConsecDays('sick') && OT.countsSickConsecDays('fsick') && !OT.countsSickConsecDays('sfuneralImmediate') && !OT.countsSickConsecDays('sfuneralNonImmediate') && !OT.countsSickConsecDays('fmla'));
   assert('C4 TYPES has new funeral entries', OT.TYPES.sfuneralImmediate && OT.TYPES.sfuneralNonImmediate);
   assert('C5 isSickLeaveType covers the family', ['sick','fsick','sfuneralImmediate','sfuneralNonImmediate','fmla'].every(t => OT.isSickLeaveType(t)) && !OT.isSickLeaveType('ot') && !OT.isSickLeaveType('vac'));
 }

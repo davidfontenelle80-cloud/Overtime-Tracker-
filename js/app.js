@@ -357,40 +357,47 @@
   var SICK_LEAVE_RULES = {
     sick: {
       label: 'Regular Sick', shortLabel: 'Sick', internalType: 'sick',
-      usesSickBank: true, countsOccurrence: true, canBridgeSickStretch: true,
+      usesSickBank: true, countsOccurrence: true, canBridgeSickStretch: true, countsConsecDays: true,
       annualCapDays: null, capReset: null, perEventCapDays: null,
       requiresEventId: false, usesFmlaLogic: false, displayColor: 'sick'
     },
     fsick: {
       label: 'Family Sick', shortLabel: 'Fam Sick', internalType: 'fsick',
-      usesSickBank: true, countsOccurrence: false, canBridgeSickStretch: true,
+      usesSickBank: true, countsOccurrence: false, canBridgeSickStretch: true, countsConsecDays: true,
       annualCapDays: 10, capReset: 'jan1', perEventCapDays: null,
       requiresEventId: false, usesFmlaLogic: false, displayColor: 'fsick'
     },
     sfuneralImmediate: {
       label: 'Funeral - Immediate Family', shortLabel: 'Funeral Imm', internalType: 'sfuneralImmediate',
-      usesSickBank: true, countsOccurrence: false, canBridgeSickStretch: false,
+      usesSickBank: true, countsOccurrence: false, canBridgeSickStretch: true, countsConsecDays: false,
       annualCapDays: null, capReset: null, perEventCapDays: 3,
       requiresEventId: true, usesFmlaLogic: false, displayColor: 'sfun'
     },
     sfuneralNonImmediate: {
       label: 'Funeral - Non-Immediate', shortLabel: 'Funeral Non-Imm', internalType: 'sfuneralNonImmediate',
-      usesSickBank: true, countsOccurrence: false, canBridgeSickStretch: false,
+      usesSickBank: true, countsOccurrence: false, canBridgeSickStretch: true, countsConsecDays: false,
       annualCapDays: 3, capReset: 'jan1', perEventCapDays: null,
       requiresEventId: false, usesFmlaLogic: false, displayColor: 'sfun2'
     },
     fmla: {
       label: 'FMLA Leave', shortLabel: 'FMLA', internalType: 'fmla',
-      usesSickBank: false, countsOccurrence: false, canBridgeSickStretch: false,
+      usesSickBank: false, countsOccurrence: false, canBridgeSickStretch: false, countsConsecDays: false,
       annualCapDays: null, capReset: null, perEventCapDays: null,
       requiresEventId: false, usesFmlaLogic: true, displayColor: 'fmla'
     }
   };
+  // Bridging semantics (conservative, per contract review 2026-07-15):
+  // - canBridgeSickStretch: the day keeps a sick stretch CONNECTED (an intervening
+  //   funeral day must not split one illness into two occurrences).
+  // - countsConsecDays: the day adds to the consecutive-day count used for the
+  //   5-day doctor-note warning. Funeral days bridge but do NOT add days.
+  // - Only a stretch containing Regular Sick ever counts as an occurrence.
   function sickLeaveRule(type) { return SICK_LEAVE_RULES[type] || null; }
   function isSickLeaveType(type) { return !!SICK_LEAVE_RULES[type]; }
   function usesSickBank(type) { var r = sickLeaveRule(type); return !!(r && r.usesSickBank); }
   function countsAsOccurrence(type) { var r = sickLeaveRule(type); return !!(r && r.countsOccurrence); }
   function canBridgeSickStretch(type) { var r = sickLeaveRule(type); return !!(r && r.canBridgeSickStretch); }
+  function countsSickConsecDays(type) { var r = sickLeaveRule(type); return !!(r && r.countsConsecDays); }
 
   // === Date filter helpers ===
   function inWorkYear(d, ref) { return d >= getWorkYearStart(ref) && d <= getWorkYearEnd(ref); }
@@ -624,21 +631,24 @@
     return parts.join(' · ');
   }
 
-  // === Stretches (consecutive workdays of sick/fsick ONLY, no breaks) ===
+  // === Stretches (consecutive workdays of the sick-leave family, no breaks) ===
+  // Continuity (canBridgeSickStretch) and day-counting (countsConsecDays) are
+  // separate: sick and fsick both connect AND count days (unchanged legacy
+  // behavior); funeral days connect the stretch so one illness is not split
+  // into two occurrences, but add zero days to the doctor-note count.
   function getStretches(filterFn) {
-    // Build a map of dates that have any sick or fsick entry
     var dateMap = {};
     for (var k in state.data) {
       var dayEntries = getDateEntries(k);
-      var hasSick = false, hasAny = false;
+      var hasSick = false, hasAny = false, countsDay = false;
       for (var ei = 0; ei < dayEntries.length; ei++) {
         var stType = dayEntries[ei].type;
-        if (stType === 'sick') { hasSick = true; hasAny = true; }
-        else if (canBridgeSickStretch(stType)) { hasAny = true; } // fsick bridges (existing behavior); funeral/FMLA do not
+        if (stType === 'sick') { hasSick = true; hasAny = true; countsDay = true; }
+        else if (canBridgeSickStretch(stType)) { hasAny = true; if (countsSickConsecDays(stType)) countsDay = true; }
       }
       if (hasAny) {
         var d = parseDateKey(k);
-        if (!filterFn || filterFn(d)) dateMap[k] = { key: k, date: d, hasSick: hasSick };
+        if (!filterFn || filterFn(d)) dateMap[k] = { key: k, date: d, hasSick: hasSick, countsDay: countsDay };
       }
     }
     var keys = Object.keys(dateMap).sort();
@@ -646,15 +656,16 @@
     for (var i = 0; i < keys.length; i++) {
       var info = dateMap[keys[i]];
       if (!current) {
-        current = { start: info.date, end: info.date, days: 1, hasSick: info.hasSick };
+        current = { start: info.date, end: info.date, days: info.countsDay ? 1 : 0, hasSick: info.hasSick };
       } else {
         var next = nextWorkday(current.end);
         if (formatDateKey(next) === info.key) {
-          current.end = info.date; current.days++;
+          current.end = info.date;
+          if (info.countsDay) current.days++;
           if (info.hasSick) current.hasSick = true;
         } else {
           stretches.push(current);
-          current = { start: info.date, end: info.date, days: 1, hasSick: info.hasSick };
+          current = { start: info.date, end: info.date, days: info.countsDay ? 1 : 0, hasSick: info.hasSick };
         }
       }
     }
@@ -792,7 +803,7 @@
     }
 
     // Consecutive workdays check (sick/fsick chains)
-    if (dateStr && canBridgeSickStretch(type)) {
+    if (dateStr && countsSickConsecDays(type)) {
       var consecLen = projectConsecutiveLength(dateStr, type);
       if (consecLen > MAX_CONSEC_WORKDAYS) warns.push('This makes ' + consecLen + ' consecutive workdays of sick/family sick. Limit before doctor note: ' + MAX_CONSEC_WORKDAYS + '.');
     }
@@ -2911,6 +2922,7 @@
       calcFuneralImmediateDaysUsed: calcFuneralImmediateDaysUsed, calcFuneralNonImmediateDaysUsed: calcFuneralNonImmediateDaysUsed,
       getDateEntries: getDateEntries, setDateEntries: setDateEntries, saveData: saveData, saveSettings: saveSettings,
       countsAsOccurrence: countsAsOccurrence, usesSickBank: usesSickBank, canBridgeSickStretch: canBridgeSickStretch,
+      countsSickConsecDays: countsSickConsecDays,
       isSickLeaveType: isSickLeaveType, getFuneralEvents: getFuneralEvents, formatDateKey: formatDateKey, WD: WD
     };
   }

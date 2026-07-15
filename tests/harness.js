@@ -1,6 +1,17 @@
 // Boots the real app.js in a sandboxed VM with mocked DOM + localStorage.
 // Usage: makeApp(appSource, { seedStorage }) -> returns window.OTInternals
+// The sandbox clock is FROZEN at 2026-07-15 so date-sensitive expectations
+// (work year, quarters, calendar-year resets) stay stable in CI forever.
 const vm = require('vm');
+
+const FROZEN_TIME = new Date(2026, 6, 15, 12, 0, 0).getTime();
+class FrozenDate extends Date {
+  constructor(...args) {
+    if (args.length === 0) super(FROZEN_TIME);
+    else super(...args);
+  }
+  static now() { return FROZEN_TIME; }
+}
 
 function mockElement() {
   const el = {
@@ -39,7 +50,7 @@ function makeApp(source, opts) {
     navigator: {},
     console,
     setTimeout: () => 0, clearTimeout(){}, setInterval: () => 0, clearInterval(){},
-    Date, Math, JSON, parseFloat, parseInt, isNaN, isFinite, String, Number, Array, Object, Boolean, RegExp, Error,
+    Date: FrozenDate, Math, JSON, parseFloat, parseInt, isNaN, isFinite, String, Number, Array, Object, Boolean, RegExp, Error,
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
