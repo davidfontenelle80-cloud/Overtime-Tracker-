@@ -10,7 +10,7 @@
  *  5. Broadcast RELOAD_READY to all clients after activation
  */
 
-const CACHE_VERSION = 'overtime-tracker-v25-a11y-viewport-zoom';
+const CACHE_VERSION = 'overtime-tracker-v25-a11y-viewport-zoom-no-pinch-zoom';
 
 const PRECACHE_URLS = [
   './',
