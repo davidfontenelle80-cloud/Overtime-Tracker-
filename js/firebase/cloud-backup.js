@@ -148,9 +148,9 @@
           '<h3 id="khubCloudAuthTitle" style="margin:0 0 8px;font-size:18px;color:#111827;">Cloud account</h3>' +
           '<p style="margin:0 0 12px;color:#4b5563;font-size:13px;line-height:1.4;">Sign in with the same email and password on every device. Use Sign in if the email already exists; use Create account only the first time.</p>' +
           '<label style="display:block;font-size:13px;font-weight:700;margin:10px 0 6px;color:#374151;">Email</label>' +
-          '<input id="khubCloudEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" style="box-sizing:border-box;width:100%;padding:11px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#111827;">' +
+          '<input id="khubCloudEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" style="font-size:16px;box-sizing:border-box;width:100%;padding:11px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#111827;">' +
           '<label id="khubCloudPasswordLabel" style="display:block;font-size:13px;font-weight:700;margin:10px 0 6px;color:#374151;">Password</label>' +
-          '<input id="khubCloudPassword" type="password" autocomplete="new-password" style="box-sizing:border-box;width:100%;padding:11px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#111827;">' +
+          '<input id="khubCloudPassword" type="password" autocomplete="new-password" style="font-size:16px;box-sizing:border-box;width:100%;padding:11px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#111827;">' +
           '<div id="khubCloudAuthError" style="min-height:18px;margin:10px 0;color:#dc2626;font-size:13px;"></div>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px;">' +
             '<button id="khubCloudCancel" type="button" style="padding:10px 12px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#111827;">Cancel</button>' +

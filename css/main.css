@@ -5,6 +5,8 @@
 
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  /* UX-STANDARDS §2: inputs never below 16px (iOS Safari auto-zoom) */
+  input, select, textarea { font-size: 16px; font-family: inherit; }
   html, body { margin: 0; padding: 0; background: var(--page-bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overscroll-behavior-y: none; }
   body.light { background: var(--page-bg); color: var(--text); }
 
