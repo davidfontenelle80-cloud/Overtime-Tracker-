@@ -1,16 +1,9 @@
 /**
- * sw.js — KHub Boilerplate
- * Version: v2
- *
- * Responsibilities:
- *  1. Precache the app shell on install
- *  2. Serve app shell network-first, fall back to cache
- *  3. Purge old caches on activate
- *  4. Respond to SKIP_WAITING message
- *  5. Broadcast RELOAD_READY to all clients after activation
+ * Overtime Tracker service worker
+ * Safe, scoped PWA caching with network-first recovery.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v25-a11y-viewport-zoom-no-pinch-zoom';
+const CACHE_VERSION = 'overtime-tracker-v26-iphone-black-screen-recovery';
 
 const PRECACHE_URLS = [
   './',
@@ -30,6 +23,7 @@ const PRECACHE_URLS = [
   './js/components/card.js',
   './js/components/input.js',
   './js/perf.js',
+  './js/sw-register.js',
   './js/app.js',
   './js/firebase/firebase-config.js',
   './js/firebase/cloud-backup.js',
@@ -38,45 +32,55 @@ const PRECACHE_URLS = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(PRECACHE_URLS))
+      .then(cache => Promise.allSettled(
+        PRECACHE_URLS.map(url => cache.add(url))
+      ))
       .then(() => self.skipWaiting())
-      .catch(err => console.error('[KHub SW] Install failed:', err))
   );
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_VERSION).map(key => caches.delete(key))))
+      .then(keys => Promise.all(
+        keys
+          .filter(key => key.startsWith('overtime-tracker-') && key !== CACHE_VERSION)
+          .map(key => caches.delete(key))
+      ))
       .then(() => self.clients.claim())
-      .then(() => {
-        self.clients.matchAll({ type: 'window' }).then(clients => {
-          clients.forEach(client => client.postMessage({ type: 'RELOAD_READY' }));
-        });
-      })
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => clients.forEach(client => client.postMessage({ type: 'RELOAD_READY' })))
   );
 });
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
-  const isAppShell = PRECACHE_URLS.some(path => new URL(path, self.location.href).pathname === url.pathname);
-  if (!isAppShell) return;
+
+  const isNavigation = event.request.mode === 'navigate' || event.request.destination === 'document';
+  const isAppAsset = PRECACHE_URLS.some(path => new URL(path, self.location.href).pathname === url.pathname);
+  if (!isNavigation && !isAppAsset) return;
+
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'reload' })
       .then(response => {
-        if (response && response.status === 200 && response.type === 'basic') {
-          const cloned = response.clone();
-          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, cloned));
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => {
+        if (isNavigation) {
+          return caches.match('./index.html').then(response => response || caches.match('./'));
+        }
+        return caches.match(event.request).then(response => response || Response.error());
+      })
   );
 });
 
 self.addEventListener('message', event => {
-  if (!event.data) return;
-  if (event.data.type === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
