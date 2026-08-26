@@ -1792,7 +1792,28 @@
     html += '<button class="toggle-btn ' + (state.pickMode ? 'active' : '') + '" data-action="pick-toggle-mode">' + (state.pickMode ? 'On' : 'Off') + '</button></div>';
     if (state.pickMode) {
       var pickCount = state.addSelectedDays.length;
-      html += '<div class="text-sm muted">Pick days in this pay period (' + formatPeriodRange(state.activePeriod) + '). Days outside it are locked. ' + pickCount + ' day' + (pickCount === 1 ? '' : 's') + ' picked.</div>';
+      html += '<div class="text-sm muted" style="margin-bottom:2px">Pick days in this pay period (' + formatPeriodRange(state.activePeriod) + '). ' + pickCount + ' selected.</div>';
+      var _ps = getPeriodStart(state.activePeriod);
+      var _wk = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+      html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">';
+      for (var _pd = 0; _pd < 14; _pd++) {
+        var _pdd = new Date(_ps.getFullYear(), _ps.getMonth(), _ps.getDate() + _pd);
+        var _pdk = formatDateKey(_pdd);
+        var _sel = state.addSelectedDays.indexOf(_pdk) !== -1;
+        var _de = getDateEntries(_pdk);
+        var _tag = '';
+        for (var _q = 0; _q < _de.length; _q++) {
+          if (_de[_q].type === 'block') { _tag = 'OFF'; break; }
+          if (typeof _de[_q].hours === 'number') { _tag = (TYPES[_de[_q].type] ? TYPES[_de[_q].type].tag : '') + ':' + fmtCompact(_de[_q].hours); break; }
+        }
+        var _css = _sel ? 'background:var(--ot);border:1px solid var(--ot);color:var(--on-ot)' : 'background:var(--input-bg);border:1px solid var(--input-border);color:var(--text)';
+        html += '<button type="button" data-action="day" data-date="' + _pdk + '" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50px;border-radius:12px;padding:4px 2px;font-family:inherit;cursor:pointer;' + _css + '">';
+        html += '<span style="font-size:10px;font-weight:800;line-height:1">' + _wk[_pdd.getDay()] + '</span>';
+        html += '<span style="font-size:14px;font-weight:700;line-height:1.1">' + _pdd.getDate() + '</span>';
+        if (_tag) html += '<span style="font-size:8px;font-weight:700;margin-top:1px;opacity:.85">' + escapeHtml(_tag) + '</span>';
+        html += '</button>';
+      }
+      html += '</div>';
       var pickTypes = ['ot', 'vac', 'sick', 'fsick', 'pl', 'comp', 'hcomp', 'block'];
       html += '<div class="type-chips" style="grid-template-columns:repeat(4,1fr);gap:6px">';
       for (var pti = 0; pti < pickTypes.length; pti++) {
@@ -1811,6 +1832,7 @@
     }
     html += '</div>';
 
+    if (!state.pickMode) {
     html += '<div class="card card-lg card-mb" id="calCard">';
     html += '<div class="cal-header">';
     html += '<button class="small-btn" data-action="prev-month">' + icons.chevLeft + '</button>';
@@ -1876,6 +1898,7 @@
       html += '</div>';
     }
     html += '</div></div>';
+    }
     return html;
   }
 
