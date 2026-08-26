@@ -2769,6 +2769,16 @@
         return;
       }
     }
+    if (state.addType === 'block') {
+      var _ow = 0;
+      for (var _bi = 0; _bi < keys.length; _bi++) {
+        if (getDateEntries(keys[_bi]).filter(function(e) { return e.type !== 'block'; }).length) _ow++;
+      }
+      if (_ow > 0) {
+        showConfirm('Mark ' + keys.length + ' day' + (keys.length === 1 ? '' : 's') + ' Off?', 'This removes existing entries on ' + _ow + ' of the selected day' + (_ow === 1 ? '' : 's') + '.', commit, 'Mark Off');
+        return;
+      }
+    }
     commit();
   }
 
