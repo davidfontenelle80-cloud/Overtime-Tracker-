@@ -71,6 +71,8 @@
     backupOpen: false,
     pickMode: false,
     addSelectedDays: [],
+    pickScope: 'period',
+    planMonth: new Date(),
     snapshotUnit: 'days',
     balanceUnit: 'hours',
     confirmCb: null,
@@ -1788,16 +1790,38 @@
     html += '</div></div></div>';
 
     html += '<div class="card card-mb-sm" style="display:flex;flex-direction:column;gap:10px">';
-    html += '<div class="flex-between"><div class="label">Multi-Add — enter once, fill many days</div>';
+    html += '<div class="flex-between"><div class="label">Multi-Add &amp; Plan</div>';
     html += '<button class="toggle-btn ' + (state.pickMode ? 'active' : '') + '" data-action="pick-toggle-mode">' + (state.pickMode ? 'On' : 'Off') + '</button></div>';
     if (state.pickMode) {
       var pickCount = state.addSelectedDays.length;
-      html += '<div class="text-sm muted" style="margin-bottom:2px">Pick days in this pay period (' + formatPeriodRange(state.activePeriod) + '). ' + pickCount + ' selected.</div>';
-      var _ps = getPeriodStart(state.activePeriod);
+      var _scopeMonth = state.pickScope === 'month';
+      html += '<div class="toggle-row" style="margin-bottom:2px">';
+      html += '<button class="toggle-btn ' + (!_scopeMonth ? 'active' : '') + '" data-action="plan-scope" data-scope="period">This Pay Period</button>';
+      html += '<button class="toggle-btn ' + (_scopeMonth ? 'active' : '') + '" data-action="plan-scope" data-scope="month">Whole Month (plan)</button>';
+      html += '</div>';
+      var _days = [];
       var _wk = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+      if (_scopeMonth) {
+        var _pm = state.planMonth;
+        html += '<div class="flex-between" style="margin:2px 0">';
+        html += '<button class="small-btn" data-action="plan-prev-month">' + icons.chevLeft + '</button>';
+        html += '<div class="label">' + _pm.toLocaleString('en-US', { month: 'long', year: 'numeric' }) + '</div>';
+        html += '<button class="small-btn" data-action="plan-next-month">' + icons.chevRight + '</button>';
+        html += '</div>';
+        html += '<div class="text-sm muted" style="margin-bottom:2px">Pick any days this month to plan. ' + pickCount + ' selected.</div>';
+        var _first = new Date(_pm.getFullYear(), _pm.getMonth(), 1);
+        var _lastN = new Date(_pm.getFullYear(), _pm.getMonth() + 1, 0).getDate();
+        for (var _bp = 0; _bp < _first.getDay(); _bp++) _days.push(null);
+        for (var _dn = 1; _dn <= _lastN; _dn++) _days.push(new Date(_pm.getFullYear(), _pm.getMonth(), _dn));
+      } else {
+        html += '<div class="text-sm muted" style="margin-bottom:2px">Pick days in this pay period (' + formatPeriodRange(state.activePeriod) + '). ' + pickCount + ' selected.</div>';
+        var _ps2 = getPeriodStart(state.activePeriod);
+        for (var _pd2 = 0; _pd2 < 14; _pd2++) _days.push(new Date(_ps2.getFullYear(), _ps2.getMonth(), _ps2.getDate() + _pd2));
+      }
       html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">';
-      for (var _pd = 0; _pd < 14; _pd++) {
-        var _pdd = new Date(_ps.getFullYear(), _ps.getMonth(), _ps.getDate() + _pd);
+      for (var _di = 0; _di < _days.length; _di++) {
+        var _pdd = _days[_di];
+        if (!_pdd) { html += '<div></div>'; continue; }
         var _pdk = formatDateKey(_pdd);
         var _sel = state.addSelectedDays.indexOf(_pdk) !== -1;
         var _de = getDateEntries(_pdk);
@@ -2236,7 +2260,7 @@
     else if (action === 'preview-tap' || action === 'day' || action === 'log-tap') {
       if (action === 'day' && state.pickMode) {
         var pkKey = el.getAttribute('data-date');
-        if (getPayPeriod(parseDateKey(pkKey)) !== state.activePeriod) {
+        if (state.pickScope !== 'month' && getPayPeriod(parseDateKey(pkKey)) !== state.activePeriod) {
           haptic('heavy'); showToast('That day is outside this pay period', 'error');
           return;
         }
@@ -2422,13 +2446,21 @@
       state.pickMode = !state.pickMode;
       if (state.pickMode) {
         if (state.addType === 'fmla' || state.addType === 'sfuneralImmediate' || state.addType === 'sfuneralNonImmediate') { state.addType = 'ot'; state.addHours = '0'; }
-        state.calMonth = getPeriodStart(state.activePeriod);
-        prunePickToPeriod();
+        if (state.pickScope !== 'month') { state.calMonth = getPeriodStart(state.activePeriod); prunePickToPeriod(); }
       } else {
+        if (state.pickScope === 'month') state.calMonth = new Date(state.planMonth.getFullYear(), state.planMonth.getMonth(), 1);
         state.addSelectedDays = [];
       }
       render();
     }
+    else if (action === 'plan-scope') {
+      haptic('light');
+      var _ns = el.getAttribute('data-scope');
+      if (_ns !== state.pickScope) { state.pickScope = _ns; state.addSelectedDays = []; }
+      render();
+    }
+    else if (action === 'plan-prev-month') { haptic('light'); state.planMonth = new Date(state.planMonth.getFullYear(), state.planMonth.getMonth() - 1, 1); render(); }
+    else if (action === 'plan-next-month') { haptic('light'); state.planMonth = new Date(state.planMonth.getFullYear(), state.planMonth.getMonth() + 1, 1); render(); }
     else if (action === 'pick-clear') { haptic('light'); state.addSelectedDays = []; render(); }
     else if (action === 'pick-save') { savePickedDays(); }
     else if (action === 'add-save') { saveAddEntry(); }
@@ -2711,7 +2743,7 @@
 
   // Keep the multi-add selection confined to the active pay period; drop anything outside it.
   function prunePickToPeriod() {
-    if (!state.pickMode) return;
+    if (!state.pickMode || state.pickScope === 'month') return;
     state.addSelectedDays = state.addSelectedDays.filter(function(k) { return getPayPeriod(parseDateKey(k)) === state.activePeriod; });
   }
 
@@ -2720,7 +2752,8 @@
   // list of dates instead of a contiguous range. Simple single-charge types only.
   // Days are restricted to the active pay period.
   function savePickedDays() {
-    var keys = state.addSelectedDays.slice().sort().filter(function(k) { return getPayPeriod(parseDateKey(k)) === state.activePeriod; });
+    var keys = state.addSelectedDays.slice().sort();
+    if (state.pickScope !== 'month') keys = keys.filter(function(k) { return getPayPeriod(parseDateKey(k)) === state.activePeriod; });
     if (keys.length === 0) { showToast('Tap days on the calendar first', 'error'); haptic('heavy'); return; }
     if (state.addType === 'fmla') { showToast('Add FMLA one day at a time', 'error'); haptic('heavy'); return; }
 
