@@ -1808,7 +1808,7 @@
         html += '<div class="label">' + _pm.toLocaleString('en-US', { month: 'long', year: 'numeric' }) + '</div>';
         html += '<button class="small-btn" data-action="plan-next-month">' + icons.chevRight + '</button>';
         html += '</div>';
-        html += '<div class="text-sm muted" style="margin-bottom:2px">Pick any days this month to plan. ' + pickCount + ' selected.</div>';
+        html += '<div class="text-sm muted" style="margin-bottom:2px">Pick any days to plan. The purple ring marks the current pay period — step it with the arrows up top. ' + pickCount + ' selected.</div>';
         var _first = new Date(_pm.getFullYear(), _pm.getMonth(), 1);
         var _lastN = new Date(_pm.getFullYear(), _pm.getMonth() + 1, 0).getDate();
         for (var _bp = 0; _bp < _first.getDay(); _bp++) _days.push(null);
@@ -1818,6 +1818,7 @@
         var _ps2 = getPeriodStart(state.activePeriod);
         for (var _pd2 = 0; _pd2 < 14; _pd2++) _days.push(new Date(_ps2.getFullYear(), _ps2.getMonth(), _ps2.getDate() + _pd2));
       }
+      var _todayKey = formatDateKey(new Date());
       html += '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">';
       for (var _di = 0; _di < _days.length; _di++) {
         var _pdd = _days[_di];
@@ -1830,10 +1831,13 @@
           if (_de[_q].type === 'block') { _tag = 'OFF'; break; }
           if (typeof _de[_q].hours === 'number') { _tag = (TYPES[_de[_q].type] ? TYPES[_de[_q].type].tag : '') + ':' + fmtCompact(_de[_q].hours); break; }
         }
+        var _inPeriod = getPayPeriod(_pdd) === state.activePeriod;
+        var _isToday = _pdk === _todayKey;
         var _css = _sel ? 'background:var(--ot);border:1px solid var(--ot);color:var(--on-ot)' : 'background:var(--input-bg);border:1px solid var(--input-border);color:var(--text)';
+        if (_scopeMonth && _inPeriod) _css += ';box-shadow:inset 0 0 0 2px var(--period-ring), 0 0 10px var(--period-ring-glow)';
         html += '<button type="button" data-action="day" data-date="' + _pdk + '" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:50px;border-radius:12px;padding:4px 2px;font-family:inherit;cursor:pointer;' + _css + '">';
-        html += '<span style="font-size:10px;font-weight:800;line-height:1">' + _wk[_pdd.getDay()] + '</span>';
-        html += '<span style="font-size:14px;font-weight:700;line-height:1.1">' + _pdd.getDate() + '</span>';
+        html += '<span style="font-size:10px;font-weight:800;line-height:1' + (_isToday ? ';color:var(--block)' : '') + '">' + _wk[_pdd.getDay()] + '</span>';
+        html += '<span style="' + (_isToday ? 'font-size:15px;font-weight:900;color:var(--block);text-decoration:underline;text-underline-offset:2px' : 'font-size:14px;font-weight:700;line-height:1.1') + '">' + _pdd.getDate() + '</span>';
         if (_tag) html += '<span style="font-size:8px;font-weight:700;margin-top:1px;opacity:.85">' + escapeHtml(_tag) + '</span>';
         html += '</button>';
       }
@@ -2240,8 +2244,8 @@
   function handleAction(action, el) {
     try {
     if (action === 'tab') { haptic('light'); state.tab = el.getAttribute('data-tab'); state.selectedDate = null; render(); }
-    else if (action === 'prev-period') { haptic('light'); state.activePeriod--; prunePickToPeriod(); render(); }
-    else if (action === 'next-period') { haptic('light'); state.activePeriod++; prunePickToPeriod(); render(); }
+    else if (action === 'prev-period') { haptic('light'); state.activePeriod--; followPeriodInMonthScope(); prunePickToPeriod(); render(); }
+    else if (action === 'next-period') { haptic('light'); state.activePeriod++; followPeriodInMonthScope(); prunePickToPeriod(); render(); }
     else if (action === 'prev-month') { haptic('light'); state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() - 1); render(); }
     else if (action === 'next-month') { haptic('light'); state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() + 1); render(); }
     else if (action === 'preview-mode') { haptic('light'); state.previewMode = el.getAttribute('data-mode'); render(); }
@@ -2742,6 +2746,14 @@
   }
 
   // Keep the multi-add selection confined to the active pay period; drop anything outside it.
+  // When stepping pay periods while planning a whole month, slide the month view to follow.
+  function followPeriodInMonthScope() {
+    if (state.pickMode && state.pickScope === 'month') {
+      var _fps = getPeriodStart(state.activePeriod);
+      state.planMonth = new Date(_fps.getFullYear(), _fps.getMonth(), 1);
+    }
+  }
+
   function prunePickToPeriod() {
     if (!state.pickMode || state.pickScope === 'month') return;
     state.addSelectedDays = state.addSelectedDays.filter(function(k) { return getPayPeriod(parseDateKey(k)) === state.activePeriod; });
