@@ -3,7 +3,7 @@
  * Safe, scoped PWA caching with network-first recovery.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v27-multi-add';
+const CACHE_VERSION = 'overtime-tracker-v28-multi-add-payperiod';
 
 const PRECACHE_URLS = [
   './',
