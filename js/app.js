@@ -69,6 +69,8 @@
     previewPeriod: 0,
     logFilter: 'all',
     backupOpen: false,
+    pickMode: false,
+    addSelectedDays: [],
     snapshotUnit: 'days',
     balanceUnit: 'hours',
     confirmCb: null,
@@ -1785,6 +1787,30 @@
     html += '<button class="small-btn" data-action="next-period">' + icons.chevRight + '</button>';
     html += '</div></div></div>';
 
+    html += '<div class="card card-mb-sm" style="display:flex;flex-direction:column;gap:10px">';
+    html += '<div class="flex-between"><div class="label">Multi-Add — enter once, fill many days</div>';
+    html += '<button class="toggle-btn ' + (state.pickMode ? 'active' : '') + '" data-action="pick-toggle-mode">' + (state.pickMode ? 'On' : 'Off') + '</button></div>';
+    if (state.pickMode) {
+      var pickCount = state.addSelectedDays.length;
+      html += '<div class="text-sm muted">Tap days on the calendar to select them, set the hours once, then Save. ' + pickCount + ' day' + (pickCount === 1 ? '' : 's') + ' picked.</div>';
+      var pickTypes = ['ot', 'vac', 'sick', 'fsick', 'pl', 'comp', 'hcomp', 'block'];
+      html += '<div class="type-chips" style="grid-template-columns:repeat(4,1fr);gap:6px">';
+      for (var pti = 0; pti < pickTypes.length; pti++) {
+        var pkt = pickTypes[pti];
+        html += '<button class="type-chip ' + TYPES[pkt].color + (state.addType === pkt ? ' active' : '') + '" data-action="add-type" data-type="' + pkt + '">' + TYPES[pkt].label + '</button>';
+      }
+      html += '</div>';
+      if (state.addType !== 'block') {
+        html += '<input type="hidden" id="addHours" value="' + escapeHtml(state.addHours) + '">';
+        html += renderHoursPicker('add', state.addHours);
+      }
+      html += '<div style="display:flex;gap:8px;margin-top:2px">';
+      html += '<button class="btn-primary" style="flex:1" data-action="pick-save">Save to ' + pickCount + ' day' + (pickCount === 1 ? '' : 's') + '</button>';
+      html += '<button class="small-btn" data-action="pick-clear" style="padding:0 16px">Clear</button>';
+      html += '</div>';
+    }
+    html += '</div>';
+
     html += '<div class="card card-lg card-mb" id="calCard">';
     html += '<div class="cal-header">';
     html += '<button class="small-btn" data-action="prev-month">' + icons.chevLeft + '</button>';
@@ -1837,7 +1863,9 @@
         if (inActive) classes.push('in-period');
         if (isToday) classes.push('today');
         var subText = subParts.join('\n');
-        html += '<button class="' + classes.join(' ') + '" data-action="day" data-date="' + key + '">';
+        var isPicked = state.pickMode && state.addSelectedDays.indexOf(key) !== -1;
+        var pickStyle = isPicked ? ' style="outline:3px solid var(--ot);outline-offset:-2px;border-radius:12px"' : '';
+        html += '<button class="' + classes.join(' ') + '" data-action="day" data-date="' + key + '"' + pickStyle + '>';
         html += '<span class="cal-cell-num">' + d + '</span>';
         if (subText) html += '<span class="cal-cell-sub">' + subText + '</span>';
         html += '</button>';
@@ -2181,7 +2209,15 @@
       render();
     }
     else if (action === 'preview-tap' || action === 'day' || action === 'log-tap') {
-      haptic('light'); openEditPanel(el.getAttribute('data-date'));
+      if (action === 'day' && state.pickMode) {
+        haptic('light');
+        var pkKey = el.getAttribute('data-date');
+        var pkIdx = state.addSelectedDays.indexOf(pkKey);
+        if (pkIdx === -1) state.addSelectedDays.push(pkKey); else state.addSelectedDays.splice(pkIdx, 1);
+        render();
+      } else {
+        haptic('light'); openEditPanel(el.getAttribute('data-date'));
+      }
     }
     else if (action === 'close-panel') { state.selectedDate = null; renderPanel(); }
     else if (action === 'edit-type') {
@@ -2244,6 +2280,7 @@
       if (state.addType === 'fmla' && !state.addFmlaReason) { state.addFmlaReason = 'self'; state.addFmlaCharge = 'vac'; }
       var atCard = document.getElementById('addEntryCard');
       if (atCard) { atCard.innerHTML = renderAddEntryCard(); setTimeout(initAllPickers, 0); }
+      else if (state.tab === 'calendar') { render(); }
     }
     else if (action === 'sick-sub') {
       haptic('light');
@@ -2351,6 +2388,15 @@
       var npMax = el.getAttribute('data-max');
       openSettingNumPad(npField, npUnit, npMax !== null ? parseFloat(npMax) : undefined);
     }
+    else if (action === 'pick-toggle-mode') {
+      haptic('light');
+      state.pickMode = !state.pickMode;
+      if (state.pickMode && (state.addType === 'fmla' || state.addType === 'sfuneralImmediate' || state.addType === 'sfuneralNonImmediate')) { state.addType = 'ot'; state.addHours = '0'; }
+      if (!state.pickMode) state.addSelectedDays = [];
+      render();
+    }
+    else if (action === 'pick-clear') { haptic('light'); state.addSelectedDays = []; render(); }
+    else if (action === 'pick-save') { savePickedDays(); }
     else if (action === 'add-save') { saveAddEntry(); }
     else if (action === 'open-day-edit') {
       haptic('light');
@@ -2627,6 +2673,62 @@
     state.addDateEnd = formatDateKey(new Date());
     render();
     setTimeout(initAllPickers, 0);
+  }
+
+  // Multi-Add: write the same entry to every day the user tapped on the calendar,
+  // in one save with a single Undo. Mirrors doAddEntry's per-day logic over an explicit
+  // list of dates instead of a contiguous range. Simple single-charge types only.
+  function savePickedDays() {
+    var keys = state.addSelectedDays.slice().sort();
+    if (keys.length === 0) { showToast('Tap days on the calendar first', 'error'); haptic('heavy'); return; }
+    if (state.addType === 'fmla') { showToast('Add FMLA one day at a time', 'error'); haptic('heavy'); return; }
+
+    var hoursPerDay = 0;
+    if (state.addType !== 'block') {
+      var hi = document.getElementById('addHours');
+      hoursPerDay = parseFloat(hi ? hi.value : state.addHours);
+      if (isNaN(hoursPerDay) || hoursPerDay < 0) { showToast('Enter valid hours', 'error'); haptic('heavy'); return; }
+      if (hoursPerDay === 0) { showToast('Tap the time button to set hours', 'error'); haptic('heavy'); return; }
+    }
+
+    function commit() {
+      var undoSnap = {};
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        undoSnap[k] = getDateEntries(k).slice();
+        if (state.addType === 'block') {
+          setDateEntries(k, [{ type: 'block' }]);
+        } else {
+          var exist = getDateEntries(k).filter(function(e) { return e.type !== state.addType; });
+          var ne = { type: state.addType, hours: hoursPerDay };
+          if (state.addType === 'sfuneralImmediate') {
+            var fev = getFuneralEventById(state.addFuneralEvent);
+            ne.eventId = state.addFuneralEvent; ne.eventLabel = fev ? fev.label : '';
+          }
+          exist.push(ne);
+          setDateEntries(k, exist);
+        }
+      }
+      saveData(); haptic('success');
+      var _keys = keys.slice(), _snap = undoSnap;
+      showToast('Saved ' + _keys.length + ' ' + (_keys.length === 1 ? 'day' : 'days'), null, function() {
+        for (var j = 0; j < _keys.length; j++) setDateEntries(_keys[j], _snap[_keys[j]]);
+        saveData(); showToast('Undone'); render();
+      });
+      state.addSelectedDays = [];
+      state.addHours = '0';
+      render();
+    }
+
+    if (state.addType !== 'block' && state.addType !== 'ot') {
+      var check = checkEntry(state.addType, hoursPerDay * keys.length, keys[0], getEntryCtx(false));
+      if (check.blocks.length > 0) { showToast(check.blocks[0], 'error'); haptic('heavy'); return; }
+      if (check.warns.length > 0) {
+        showConfirm('Confirm save', '<div>' + check.warns.map(escapeHtml).join('<br>') + '</div>', commit, 'Save Anyway');
+        return;
+      }
+    }
+    commit();
   }
 
   // Live-apply a settings numeric field on every keystroke (targeted, no full re-render).
