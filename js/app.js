@@ -1792,7 +1792,7 @@
     html += '<button class="toggle-btn ' + (state.pickMode ? 'active' : '') + '" data-action="pick-toggle-mode">' + (state.pickMode ? 'On' : 'Off') + '</button></div>';
     if (state.pickMode) {
       var pickCount = state.addSelectedDays.length;
-      html += '<div class="text-sm muted">Tap days on the calendar to select them, set the hours once, then Save. ' + pickCount + ' day' + (pickCount === 1 ? '' : 's') + ' picked.</div>';
+      html += '<div class="text-sm muted">Pick days in this pay period (' + formatPeriodRange(state.activePeriod) + '). Days outside it are locked. ' + pickCount + ' day' + (pickCount === 1 ? '' : 's') + ' picked.</div>';
       var pickTypes = ['ot', 'vac', 'sick', 'fsick', 'pl', 'comp', 'hcomp', 'block'];
       html += '<div class="type-chips" style="grid-template-columns:repeat(4,1fr);gap:6px">';
       for (var pti = 0; pti < pickTypes.length; pti++) {
@@ -1864,7 +1864,9 @@
         if (isToday) classes.push('today');
         var subText = subParts.join('\n');
         var isPicked = state.pickMode && state.addSelectedDays.indexOf(key) !== -1;
-        var pickStyle = isPicked ? ' style="outline:3px solid var(--ot);outline-offset:-2px;border-radius:12px"' : '';
+        var pickStyle = '';
+        if (state.pickMode && !inActive) pickStyle = ' style="opacity:.3;filter:grayscale(0.5)"';
+        else if (isPicked) pickStyle = ' style="outline:3px solid var(--ot);outline-offset:-2px;border-radius:12px"';
         html += '<button class="' + classes.join(' ') + '" data-action="day" data-date="' + key + '"' + pickStyle + '>';
         html += '<span class="cal-cell-num">' + d + '</span>';
         if (subText) html += '<span class="cal-cell-sub">' + subText + '</span>';
@@ -2191,8 +2193,8 @@
   function handleAction(action, el) {
     try {
     if (action === 'tab') { haptic('light'); state.tab = el.getAttribute('data-tab'); state.selectedDate = null; render(); }
-    else if (action === 'prev-period') { haptic('light'); state.activePeriod--; render(); }
-    else if (action === 'next-period') { haptic('light'); state.activePeriod++; render(); }
+    else if (action === 'prev-period') { haptic('light'); state.activePeriod--; prunePickToPeriod(); render(); }
+    else if (action === 'next-period') { haptic('light'); state.activePeriod++; prunePickToPeriod(); render(); }
     else if (action === 'prev-month') { haptic('light'); state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() - 1); render(); }
     else if (action === 'next-month') { haptic('light'); state.calMonth = new Date(state.calMonth.getFullYear(), state.calMonth.getMonth() + 1); render(); }
     else if (action === 'preview-mode') { haptic('light'); state.previewMode = el.getAttribute('data-mode'); render(); }
@@ -2210,8 +2212,12 @@
     }
     else if (action === 'preview-tap' || action === 'day' || action === 'log-tap') {
       if (action === 'day' && state.pickMode) {
-        haptic('light');
         var pkKey = el.getAttribute('data-date');
+        if (getPayPeriod(parseDateKey(pkKey)) !== state.activePeriod) {
+          haptic('heavy'); showToast('That day is outside this pay period', 'error');
+          return;
+        }
+        haptic('light');
         var pkIdx = state.addSelectedDays.indexOf(pkKey);
         if (pkIdx === -1) state.addSelectedDays.push(pkKey); else state.addSelectedDays.splice(pkIdx, 1);
         render();
@@ -2391,8 +2397,13 @@
     else if (action === 'pick-toggle-mode') {
       haptic('light');
       state.pickMode = !state.pickMode;
-      if (state.pickMode && (state.addType === 'fmla' || state.addType === 'sfuneralImmediate' || state.addType === 'sfuneralNonImmediate')) { state.addType = 'ot'; state.addHours = '0'; }
-      if (!state.pickMode) state.addSelectedDays = [];
+      if (state.pickMode) {
+        if (state.addType === 'fmla' || state.addType === 'sfuneralImmediate' || state.addType === 'sfuneralNonImmediate') { state.addType = 'ot'; state.addHours = '0'; }
+        state.calMonth = getPeriodStart(state.activePeriod);
+        prunePickToPeriod();
+      } else {
+        state.addSelectedDays = [];
+      }
       render();
     }
     else if (action === 'pick-clear') { haptic('light'); state.addSelectedDays = []; render(); }
@@ -2675,11 +2686,18 @@
     setTimeout(initAllPickers, 0);
   }
 
+  // Keep the multi-add selection confined to the active pay period; drop anything outside it.
+  function prunePickToPeriod() {
+    if (!state.pickMode) return;
+    state.addSelectedDays = state.addSelectedDays.filter(function(k) { return getPayPeriod(parseDateKey(k)) === state.activePeriod; });
+  }
+
   // Multi-Add: write the same entry to every day the user tapped on the calendar,
   // in one save with a single Undo. Mirrors doAddEntry's per-day logic over an explicit
   // list of dates instead of a contiguous range. Simple single-charge types only.
+  // Days are restricted to the active pay period.
   function savePickedDays() {
-    var keys = state.addSelectedDays.slice().sort();
+    var keys = state.addSelectedDays.slice().sort().filter(function(k) { return getPayPeriod(parseDateKey(k)) === state.activePeriod; });
     if (keys.length === 0) { showToast('Tap days on the calendar first', 'error'); haptic('heavy'); return; }
     if (state.addType === 'fmla') { showToast('Add FMLA one day at a time', 'error'); haptic('heavy'); return; }
 
