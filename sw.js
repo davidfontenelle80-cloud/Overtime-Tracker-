@@ -3,7 +3,7 @@
  * Safe, scoped PWA caching with network-first recovery.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v26-iphone-black-screen-recovery';
+const CACHE_VERSION = 'overtime-tracker-v27-multi-add';
 
 const PRECACHE_URLS = [
   './',
