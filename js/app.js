@@ -128,9 +128,13 @@
     if (isNaN(y) || isNaN(m) || isNaN(d)) return new Date();
     return new Date(y, m - 1, d);
   }
-  function getPayPeriod(d) { return Math.floor(Math.floor((d - START_DATE) / MS_PER_DAY) / 14); }
-  function getPeriodStart(i) { return new Date(START_DATE.getTime() + i * 14 * MS_PER_DAY); }
-  function getPeriodEnd(i) { return new Date(START_DATE.getTime() + (i * 14 + 13) * MS_PER_DAY); }
+  // DST-safe day arithmetic: count whole calendar days (Math.round absorbs the
+  // 1-hour daylight-saving shift) and build boundaries with calendar-day math so
+  // every pay period starts on the correct weekday year-round.
+  function daysFromStart(d) { return Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - START_DATE) / MS_PER_DAY); }
+  function getPayPeriod(d) { return Math.floor(daysFromStart(d) / 14); }
+  function getPeriodStart(i) { return new Date(START_DATE.getFullYear(), START_DATE.getMonth(), START_DATE.getDate() + i * 14); }
+  function getPeriodEnd(i) { return new Date(START_DATE.getFullYear(), START_DATE.getMonth(), START_DATE.getDate() + i * 14 + 13); }
   function formatPeriodRange(i) {
     var s = getPeriodStart(i), e = getPeriodEnd(i);
     var opts = { month: 'short', day: 'numeric' };
