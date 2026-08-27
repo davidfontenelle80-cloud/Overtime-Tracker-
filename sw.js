@@ -3,7 +3,7 @@
  * Safe, scoped PWA caching with network-first recovery.
  */
 
-const CACHE_VERSION = 'overtime-tracker-v32-plan-ring-today';
+const CACHE_VERSION = 'overtime-tracker-v33-dst-period-fix';
 
 const PRECACHE_URLS = [
   './',
