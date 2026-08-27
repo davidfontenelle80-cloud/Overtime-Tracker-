@@ -108,6 +108,20 @@
     var mm = localStorage.getItem(META_KEY);
     if (mm) state.meta = JSON.parse(mm);
   } catch (e) {}
+  // Heal legacy corruption: a day marked OFF (block) must not also carry time entries.
+  // Older add paths appended time onto a blocked day, inflating totals while it showed OFF.
+  try {
+    var _healed = false;
+    for (var _hk in state.data) {
+      var _harr = getDateEntries(_hk);
+      var _hasBlock = false, _extra = false;
+      for (var _hi = 0; _hi < _harr.length; _hi++) {
+        if (_harr[_hi] && _harr[_hi].type === 'block') _hasBlock = true; else _extra = true;
+      }
+      if (_hasBlock && _extra) { setDateEntries(_hk, [{ type: 'block' }]); _healed = true; }
+    }
+    if (_healed) saveData();
+  } catch (e) {}
   state.activePeriod = getPayPeriod(new Date());
   state.previewPeriod = state.activePeriod;
   state.addDateStart = formatDateKey(new Date());
@@ -1621,10 +1635,13 @@
     for (var k in state.data) {
       if (getPayPeriod(parseDateKey(k)) !== state.activePeriod) continue;
       var dayEntries = getDateEntries(k);
+      var blocked = false, otSum = 0;
       for (var di = 0; di < dayEntries.length; di++) {
         var e = dayEntries[di];
-        if (e && e.type === 'ot' && typeof e.hours === 'number') sum += e.hours;
+        if (e && e.type === 'block') blocked = true;
+        else if (e && e.type === 'ot' && typeof e.hours === 'number') otSum += e.hours;
       }
+      if (!blocked) sum += otSum;   // a day marked OFF contributes no OT
     }
     return sum;
   }
@@ -2636,7 +2653,7 @@
 
     var prevSnap = getDateEntries(key).slice();
     function doSave() {
-      var entries = getDateEntries(key).filter(function(e) { return e.type !== state.editType; });
+      var entries = getDateEntries(key).filter(function(e) { return e.type !== state.editType && e.type !== 'block'; });
       var newEntry;
       if (state.editType === 'fmla') {
         var alloc = calcFmlaAllocation(h, getFmlaContext(true));
@@ -2718,11 +2735,11 @@
         setDateEntries(k, [{ type: 'block' }]);
       } else if (state.addType === 'fmla') {
         var alloc2 = calcFmlaAllocation(hoursPerDay, getFmlaContext(false));
-        var existFmla = getDateEntries(k).filter(function(e) { return e.type !== 'fmla'; });
+        var existFmla = getDateEntries(k).filter(function(e) { return e.type !== 'fmla' && e.type !== 'block'; });
         existFmla.push({ type: 'fmla', hours: hoursPerDay, fmlaReason: alloc2.reason, fmlaCharge: alloc2.charge, sickCharge: parseFloat(alloc2.sickCharge.toFixed(4)), familySickCharge: parseFloat(alloc2.familySickCharge.toFixed(4)), vacCharge: parseFloat(alloc2.vacCharge.toFixed(4)), unpaidCharge: parseFloat(alloc2.unpaidCharge.toFixed(4)) });
         setDateEntries(k, existFmla);
       } else {
-        var existOther = getDateEntries(k).filter(function(e) { return e.type !== state.addType; });
+        var existOther = getDateEntries(k).filter(function(e) { return e.type !== state.addType && e.type !== 'block'; });
         var newOtherEntry = { type: state.addType, hours: hoursPerDay };
         if (state.addType === 'sfuneralImmediate') {
           var fevAdd = getFuneralEventById(state.addFuneralEvent);
@@ -2789,7 +2806,7 @@
         if (state.addType === 'block') {
           setDateEntries(k, [{ type: 'block' }]);
         } else {
-          var exist = getDateEntries(k).filter(function(e) { return e.type !== state.addType; });
+          var exist = getDateEntries(k).filter(function(e) { return e.type !== state.addType && e.type !== 'block'; });
           var ne = { type: state.addType, hours: hoursPerDay };
           if (state.addType === 'sfuneralImmediate') {
             var fev = getFuneralEventById(state.addFuneralEvent);
@@ -3123,6 +3140,7 @@
       calcPLDaysUsed: calcPLDaysUsed, calcFmlaHoursUsed: calcFmlaHoursUsed, calcFmlaHoursLeft: calcFmlaHoursLeft,
       calcFuneralImmediateDaysUsed: calcFuneralImmediateDaysUsed, calcFuneralNonImmediateDaysUsed: calcFuneralNonImmediateDaysUsed,
       getDateEntries: getDateEntries, setDateEntries: setDateEntries, saveData: saveData, saveSettings: saveSettings,
+      getCurrentPeriodOT: getCurrentPeriodOT, getPayPeriod: getPayPeriod, parseDateKey: parseDateKey, savePickedDays: savePickedDays,
       countsAsOccurrence: countsAsOccurrence, usesSickBank: usesSickBank, canBridgeSickStretch: canBridgeSickStretch,
       countsSickConsecDays: countsSickConsecDays,
       isSickLeaveType: isSickLeaveType, getFuneralEvents: getFuneralEvents, formatDateKey: formatDateKey, WD: WD
