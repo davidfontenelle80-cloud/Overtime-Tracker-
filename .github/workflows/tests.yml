@@ -21,3 +21,5 @@ jobs:
         run: git rev-parse --verify main >/dev/null 2>&1 || git fetch origin main:main
       - name: Run sick-leave test suite
         run: node tests/sick-leave-tests.js
+      - name: Run OT pay-period total suite
+        run: node tests/ot-total-tests.js
