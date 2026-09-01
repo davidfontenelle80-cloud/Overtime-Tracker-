@@ -35,6 +35,7 @@
       plUsedDays: 0,
       manualOccasions: [0, 0, 0, 0],
       manualOccasionNotes: ['', '', '', ''],
+      manualOccasionYear: null,
       workdayHours: 7.5,
       snapshotDate: '',
       fmlaEnabled: false,
@@ -122,6 +123,7 @@
     }
     if (_healed) saveData();
   } catch (e) {}
+  ensureOccasionYear();
   state.activePeriod = getPayPeriod(new Date());
   state.previewPeriod = state.activePeriod;
   state.addDateStart = formatDateKey(new Date());
@@ -205,6 +207,22 @@
   function getWorkYearEnd(d) {
     var s = getWorkYearStart(d);
     return new Date(s.getFullYear() + 1, WORK_YEAR_START_MONTH, 0);
+  }
+  // Sick occasions are tracked per work year (begins September 1). Dated sick
+  // entries already reset each work year via the inWorkYear() filter below, but
+  // the manual occasion toggles/notes live in settings with no year, so they
+  // used to carry over and show last year's occasions. Stamp them with their
+  // work year and zero them whenever the current work year no longer matches,
+  // so every September 1 all four quarters start fresh automatically.
+  function currentWorkYearKey(today) { return getWorkYearStart(today || new Date()).getFullYear(); }
+  function ensureOccasionYear(today) {
+    var wy = currentWorkYearKey(today);
+    if (state.settings.manualOccasionYear !== wy) {
+      state.settings.manualOccasions = [0, 0, 0, 0];
+      state.settings.manualOccasionNotes = ['', '', '', ''];
+      state.settings.manualOccasionYear = wy;
+      saveSettings();
+    }
   }
   function getCalYearStart(d) { return new Date(d.getFullYear(), 0, 1); }
   function getCalYearEnd(d) { return new Date(d.getFullYear(), 11, 31); }
@@ -697,6 +715,7 @@
 
   function getOccasionsByQuarter() {
     var today = new Date();
+    ensureOccasionYear(today);
     var counts = [0, 0, 0, 0];
     var stretches = getStretches(function(d) { return inWorkYear(d, today); });
     for (var i = 0; i < stretches.length; i++) {
@@ -3135,6 +3154,7 @@
     window.OTInternals = {
       state: state, TYPES: TYPES, SICK_LEAVE_RULES: SICK_LEAVE_RULES,
       checkEntry: checkEntry, getStretches: getStretches, getOccasionsByQuarter: getOccasionsByQuarter,
+      ensureOccasionYear: ensureOccasionYear, getWorkYearStart: getWorkYearStart, getQuarterIndex: getQuarterIndex,
       calcSickLeft: calcSickLeft, calcVacationLeft: calcVacationLeft, calcCompLeft: calcCompLeft,
       calcHolidayCompLeft: calcHolidayCompLeft, calcFamilySickDaysUsed: calcFamilySickDaysUsed,
       calcPLDaysUsed: calcPLDaysUsed, calcFmlaHoursUsed: calcFmlaHoursUsed, calcFmlaHoursLeft: calcFmlaHoursLeft,
