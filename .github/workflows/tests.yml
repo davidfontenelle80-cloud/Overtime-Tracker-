@@ -23,3 +23,5 @@ jobs:
         run: node tests/sick-leave-tests.js
       - name: Run OT pay-period total suite
         run: node tests/ot-total-tests.js
+      - name: Run occasion work-year reset suite
+        run: node tests/occasion-reset-tests.js
